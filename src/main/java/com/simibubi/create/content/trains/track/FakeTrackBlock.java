@@ -23,6 +23,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition.Builder;
 import net.minecraft.world.level.material.FluidState;
 import net.minecraft.world.phys.shapes.CollisionContext;
+import net.minecraft.world.phys.shapes.EntityCollisionContext;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
 
@@ -48,6 +49,10 @@ public class FakeTrackBlock extends Block implements EntityBlock, ProperWaterlog
 
 	@Override
 	public VoxelShape getCollisionShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
+		// Only entities walk on the bed. Drills, rollers, fans and contraption disassembly test
+		// "collision is empty" without an entity and must keep treating fake tracks as air.
+		if (!(context instanceof EntityCollisionContext entityContext) || entityContext.getEntity() == null)
+			return Shapes.empty();
 		return level.getBlockEntity(pos) instanceof FakeTrackBlockEntity be ? be.collisionShape() : Shapes.empty();
 	}
 
