@@ -1,5 +1,7 @@
 {
   "values": [
-    "create:track"
+    "create:track",
+    "railways:track_create_andesite_wide",
+    "railways:track_dark_oak_wide"
   ]
 }

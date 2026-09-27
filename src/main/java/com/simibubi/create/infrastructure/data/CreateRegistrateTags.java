@@ -3,6 +3,7 @@ package com.simibubi.create.infrastructure.data;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.simibubi.create.AllBlocks;
 import com.simibubi.create.AllItems;
 import com.simibubi.create.AllTags.AllBlockTags;
 import com.simibubi.create.AllTags.AllEntityTags;
@@ -154,6 +155,11 @@ public class CreateRegistrateTags {
 				Blocks.BUBBLE_CORAL_WALL_FAN, Blocks.FIRE_CORAL_WALL_FAN, Blocks.HORN_CORAL_WALL_FAN
 			);
 
+		// Wide tracks live on RAILWAYS_REGISTRATE, which has no datagen, so their .tag() calls never land.
+		for (AllBlockTags tag : List.of(AllBlockTags.TRACKS, AllBlockTags.GIRDABLE_TRACKS,
+			AllBlockTags.RELOCATION_NOT_SUPPORTED, AllBlockTags.HAS_REDUCED_DESTROY_EFFECTS))
+			prov.tag(tag.tag).add(AllBlocks.TRACK_CREATE_ANDESITE_WIDE.get(), AllBlocks.TRACK_DARK_OAK_WIDE.get());
+
 		// COMPAT
 
 		TagGen.addOptional(prov.tag(AllBlockTags.NON_MOVABLE.tag), Mods.IE, List.of(
@@ -204,6 +210,9 @@ public class CreateRegistrateTags {
 			.addTag(AllItemTags.CREATE_INGOTS.tag);
 
 		prov.tag(AllItemTags.OBSIDIAN_DUST.tag).add(AllItems.POWDERED_OBSIDIAN.get());
+
+		prov.tag(AllItemTags.TRACKS.tag)
+			.add(AllBlocks.TRACK_CREATE_ANDESITE_WIDE.get().asItem(), AllBlocks.TRACK_DARK_OAK_WIDE.get().asItem());
 
 		prov.tag(ConventionalItemTags.ENCHANTABLES).addTag(AllItemTags.PRESSURIZED_AIR_SOURCES.tag);
 
