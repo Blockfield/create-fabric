@@ -1,11 +1,13 @@
 package com.simibubi.create.content.equipment.tool;
 
-import org.jetbrains.annotations.Nullable;
-
 import com.simibubi.create.AllItems;
 import com.simibubi.create.AllSoundEvents;
 
+import io.github.fabricators_of_create.porting_lib.entity.events.living.LivingAttackEvent;
+
 import net.createmod.catnip.platform.CatnipServices;
+import net.fabricmc.fabric.api.item.v1.EnchantingContext;
+import net.fabricmc.fabric.api.util.TriState;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.Holder;
@@ -23,91 +25,93 @@ import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.SwordItem;
-import net.minecraft.world.item.crafting.RecipeType;
 import net.minecraft.world.item.enchantment.Enchantment;
 import net.minecraft.world.item.enchantment.EnchantmentHelper;
 import net.minecraft.world.item.enchantment.Enchantments;
 import net.minecraft.world.level.Level;
 
-import net.fabricmc.fabric.api.item.v1.EnchantingContext;
-import net.fabricmc.fabric.api.util.TriState;
-
-import io.github.fabricators_of_create.porting_lib.entity.events.living.LivingAttackEvent;
-
 public class CardboardSwordItem extends SwordItem {
 
-	public CardboardSwordItem(Properties pProperties) {
-		super(AllToolMaterials.CARDBOARD, pProperties);
-	}
+    public CardboardSwordItem(Properties pProperties) {
+        super(AllToolMaterials.CARDBOARD, pProperties);
+    }
 
-	/** Fabric: registered on {@code EnchantmentEvents.ALLOW_ENCHANTING} instead of NeoForge's item hook. */
-	public static TriState onlyAcceptsKnockback(Holder<Enchantment> enchantment, ItemStack target,
-		EnchantingContext context) {
-		if (!AllItems.CARDBOARD_SWORD.isIn(target))
-			return TriState.DEFAULT;
-		return enchantment.is(Enchantments.KNOCKBACK) ? TriState.DEFAULT : TriState.FALSE;
-	}
+    /**
+     * Fabric: registered on {@code EnchantmentEvents.ALLOW_ENCHANTING} instead of NeoForge's item
+     * hook.
+     */
+    public static TriState onlyAcceptsKnockback(
+            Holder<Enchantment> enchantment, ItemStack target, EnchantingContext context) {
+        if (!AllItems.CARDBOARD_SWORD.isIn(target)) return TriState.DEFAULT;
+        return enchantment.is(Enchantments.KNOCKBACK) ? TriState.DEFAULT : TriState.FALSE;
+    }
 
-	public static InteractionResult cardboardSwordsMakeNoiseOnClick(Player player, Level level, InteractionHand hand,
-		BlockPos pos, Direction direction) {
-		if (!AllItems.CARDBOARD_SWORD.isIn(player.getItemInHand(hand)))
-			return InteractionResult.PASS;
+    public static InteractionResult cardboardSwordsMakeNoiseOnClick(
+            Player player, Level level, InteractionHand hand, BlockPos pos, Direction direction) {
+        if (!AllItems.CARDBOARD_SWORD.isIn(player.getItemInHand(hand)))
+            return InteractionResult.PASS;
 
-		if (level.isClientSide)
-			AllSoundEvents.CARDBOARD_SWORD.playAt(level, pos, 0.5f, 1.85f, false);
-		else
-			AllSoundEvents.CARDBOARD_SWORD.play(level, player, pos, 0.5f, 1.85f);
+        if (level.isClientSide)
+            AllSoundEvents.CARDBOARD_SWORD.playAt(level, pos, 0.5f, 1.85f, false);
+        else AllSoundEvents.CARDBOARD_SWORD.play(level, player, pos, 0.5f, 1.85f);
 
-		// don't cancel the swing, this only adds the sound
-		return InteractionResult.PASS;
-	}
+        // don't cancel the swing, this only adds the sound
+        return InteractionResult.PASS;
+    }
 
-	public static void cardboardSwordsCannotHurtYou(LivingAttackEvent event) {
-		if (!(event.getSource()
-			.getEntity() instanceof Player attacker))
-			return;
-		LivingEntity target = event.getEntity();
-		if (target == null || target.getType().is(EntityTypeTags.ARTHROPOD))
-			return;
-		ItemStack stack = attacker.getItemInHand(InteractionHand.MAIN_HAND);
-		if (!(AllItems.CARDBOARD_SWORD.isIn(stack)))
-			return;
+    public static void cardboardSwordsCannotHurtYou(LivingAttackEvent event) {
+        if (!(event.getSource().getEntity() instanceof Player attacker)) return;
+        LivingEntity target = event.getEntity();
+        if (target == null || target.getType().is(EntityTypeTags.ARTHROPOD)) return;
+        ItemStack stack = attacker.getItemInHand(InteractionHand.MAIN_HAND);
+        if (!(AllItems.CARDBOARD_SWORD.isIn(stack))) return;
 
-		AllSoundEvents.CARDBOARD_SWORD.playFrom(attacker, 0.75f, 1.85f);
+        AllSoundEvents.CARDBOARD_SWORD.playFrom(attacker, 0.75f, 1.85f);
 
-		event.setCanceled(true);
+        event.setCanceled(true);
 
-		// Reference player.attack()
-		// This section replicates knockback behaviour without hurting the target
+        // Reference player.attack()
+        // This section replicates knockback behaviour without hurting the target
 
-		float knockbackStrength = (float) (attacker.getAttributeValue(Attributes.ATTACK_KNOCKBACK) + 2);
-		if (attacker.level() instanceof ServerLevel serverLevel)
-			knockbackStrength = EnchantmentHelper.modifyKnockback(serverLevel, stack, target, serverLevel.damageSources().playerAttack(attacker), knockbackStrength);
-		if (attacker.isSprinting() && attacker.getAttackStrengthScale(0.5f) > 0.9f)
-			++knockbackStrength;
+        float knockbackStrength =
+                (float) (attacker.getAttributeValue(Attributes.ATTACK_KNOCKBACK) + 2);
+        if (attacker.level() instanceof ServerLevel serverLevel)
+            knockbackStrength =
+                    EnchantmentHelper.modifyKnockback(
+                            serverLevel,
+                            stack,
+                            target,
+                            serverLevel.damageSources().playerAttack(attacker),
+                            knockbackStrength);
+        if (attacker.isSprinting() && attacker.getAttackStrengthScale(0.5f) > 0.9f)
+            ++knockbackStrength;
 
-		if (knockbackStrength <= 0)
-			return;
+        if (knockbackStrength <= 0) return;
 
-		float yRot = attacker.getYRot();
-		knockback(target, knockbackStrength, yRot);
+        float yRot = attacker.getYRot();
+        knockback(target, knockbackStrength, yRot);
 
-		boolean targetIsPlayer = target instanceof Player;
-		MobCategory targetType = target.getType().getCategory();
+        boolean targetIsPlayer = target instanceof Player;
+        MobCategory targetType = target.getType().getCategory();
 
-		if (target instanceof ServerPlayer sp)
-			CatnipServices.NETWORK.sendToClient(sp, new KnockbackPacket(yRot, (float) knockbackStrength));
+        if (target instanceof ServerPlayer sp)
+            CatnipServices.NETWORK.sendToClient(
+                    sp, new KnockbackPacket(yRot, (float) knockbackStrength));
 
-		if ((targetType == MobCategory.MISC || targetType == MobCategory.CREATURE) && !targetIsPlayer)
-			target.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, 60, 9, true, false, false));
+        if ((targetType == MobCategory.MISC || targetType == MobCategory.CREATURE)
+                && !targetIsPlayer)
+            target.addEffect(
+                    new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, 60, 9, true, false, false));
 
-		attacker.setDeltaMovement(attacker.getDeltaMovement()
-			.multiply(0.6D, 1.0D, 0.6D));
-		attacker.setSprinting(false);
-	}
+        attacker.setDeltaMovement(attacker.getDeltaMovement().multiply(0.6D, 1.0D, 0.6D));
+        attacker.setSprinting(false);
+    }
 
-	public static void knockback(LivingEntity target, double knockbackStrength, float yRot) {
-		target.stopRiding();
-		target.knockback(knockbackStrength * 0.5F, Mth.sin(yRot * Mth.DEG_TO_RAD), -Mth.cos(yRot * Mth.DEG_TO_RAD));
-	}
+    public static void knockback(LivingEntity target, double knockbackStrength, float yRot) {
+        target.stopRiding();
+        target.knockback(
+                knockbackStrength * 0.5F,
+                Mth.sin(yRot * Mth.DEG_TO_RAD),
+                -Mth.cos(yRot * Mth.DEG_TO_RAD));
+    }
 }

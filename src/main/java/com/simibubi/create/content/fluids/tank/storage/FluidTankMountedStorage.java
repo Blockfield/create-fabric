@@ -1,13 +1,5 @@
 package com.simibubi.create.content.fluids.tank.storage;
 
-import java.util.Objects;
-
-import com.simibubi.create.infrastructure.fabric.transfer.fluid.FluidStack;
-
-import com.simibubi.create.foundation.codec.CreateCodecs;
-
-import org.jetbrains.annotations.Nullable;
-
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import com.simibubi.create.AllMountedStorageTypes;
@@ -17,7 +9,9 @@ import com.simibubi.create.api.contraption.storage.fluid.WrapperMountedFluidStor
 import com.simibubi.create.content.contraptions.Contraption;
 import com.simibubi.create.content.fluids.tank.FluidTankBlockEntity;
 import com.simibubi.create.content.fluids.tank.storage.FluidTankMountedStorage.Handler;
-
+import com.simibubi.create.foundation.codec.CreateCodecs;
+import com.simibubi.create.infrastructure.fabric.transfer.fluid.FluidStack;
+import com.simibubi.create.infrastructure.fabric.transfer.fluid.FluidTank;
 
 import net.createmod.catnip.animation.LerpedFloat;
 import net.minecraft.core.BlockPos;
@@ -27,92 +21,103 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 
-import com.simibubi.create.infrastructure.fabric.transfer.fluid.FluidStack;
-import com.simibubi.create.infrastructure.fabric.transfer.fluid.FluidTank;
+import org.jetbrains.annotations.Nullable;
 
-public class FluidTankMountedStorage extends WrapperMountedFluidStorage<Handler> implements SyncedMountedStorage {
-	public static final MapCodec<FluidTankMountedStorage> CODEC = RecordCodecBuilder.mapCodec(i -> i.group(
-		CreateCodecs.NON_NEGATIVE_LONG.fieldOf("capacity").forGetter(FluidTankMountedStorage::getCapacity),
-		FluidStack.OPTIONAL_CODEC.fieldOf("fluid").forGetter(FluidTankMountedStorage::getFluid)
-	).apply(i, FluidTankMountedStorage::new));
+import java.util.Objects;
 
-	private boolean dirty;
+public class FluidTankMountedStorage extends WrapperMountedFluidStorage<Handler>
+        implements SyncedMountedStorage {
+    public static final MapCodec<FluidTankMountedStorage> CODEC =
+            RecordCodecBuilder.mapCodec(
+                    i ->
+                            i.group(
+                                            CreateCodecs.NON_NEGATIVE_LONG
+                                                    .fieldOf("capacity")
+                                                    .forGetter(
+                                                            FluidTankMountedStorage::getCapacity),
+                                            FluidStack.OPTIONAL_CODEC
+                                                    .fieldOf("fluid")
+                                                    .forGetter(FluidTankMountedStorage::getFluid))
+                                    .apply(i, FluidTankMountedStorage::new));
 
-	protected FluidTankMountedStorage(MountedFluidStorageType<?> type, long capacity, FluidStack stack) {
-		super(type, new Handler(capacity, stack));
-		this.wrapped.onChange = () -> this.dirty = true;
-	}
+    private boolean dirty;
 
-	protected FluidTankMountedStorage(long capacity, FluidStack stack) {
-		this(AllMountedStorageTypes.FLUID_TANK.get(), capacity, stack);
-	}
+    protected FluidTankMountedStorage(
+            MountedFluidStorageType<?> type, long capacity, FluidStack stack) {
+        super(type, new Handler(capacity, stack));
+        this.wrapped.onChange = () -> this.dirty = true;
+    }
 
-	@Override
-	public void unmount(Level level, BlockState state, BlockPos pos, @Nullable BlockEntity be) {
-		if (be instanceof FluidTankBlockEntity tank && tank.isController()) {
-			FluidTank inventory = tank.getTankInventory();
-			// capacity shouldn't change, leave it
-			inventory.setFluid(this.wrapped.getFluid());
-		}
-	}
+    protected FluidTankMountedStorage(long capacity, FluidStack stack) {
+        this(AllMountedStorageTypes.FLUID_TANK.get(), capacity, stack);
+    }
 
-	public FluidStack getFluid() {
-		return Objects.requireNonNull(this.wrapped.getFluid());
-	}
+    @Override
+    public void unmount(Level level, BlockState state, BlockPos pos, @Nullable BlockEntity be) {
+        if (be instanceof FluidTankBlockEntity tank && tank.isController()) {
+            FluidTank inventory = tank.getTankInventory();
+            // capacity shouldn't change, leave it
+            inventory.setFluid(this.wrapped.getFluid());
+        }
+    }
 
-	public long getCapacity() {
-		return this.wrapped.getCapacity();
-	}
+    public FluidStack getFluid() {
+        return Objects.requireNonNull(this.wrapped.getFluid());
+    }
 
-	@Override
-	public boolean isDirty() {
-		return this.dirty;
-	}
+    public long getCapacity() {
+        return this.wrapped.getCapacity();
+    }
 
-	@Override
-	public void markClean() {
-		this.dirty = false;
-	}
+    @Override
+    public boolean isDirty() {
+        return this.dirty;
+    }
 
-	@Override
-	public void afterSync(Contraption contraption, BlockPos localPos) {
-		BlockEntity be = contraption.presentBlockEntities.get(localPos);
-		if (!(be instanceof FluidTankBlockEntity tank))
-			return;
+    @Override
+    public void markClean() {
+        this.dirty = false;
+    }
 
-		FluidTank inv = tank.getTankInventory();
-		inv.setFluid(this.getFluid());
-		float fillLevel = inv.getFluidAmount() / (float) inv.getCapacity();
-		if (tank.getFluidLevel() == null) {
-			tank.setFluidLevel(LerpedFloat.linear().startWithValue(fillLevel));
-		}
-		tank.getFluidLevel().chase(fillLevel, 0.5, LerpedFloat.Chaser.EXP);
-	}
+    @Override
+    public void afterSync(Contraption contraption, BlockPos localPos) {
+        BlockEntity be = contraption.presentBlockEntities.get(localPos);
+        if (!(be instanceof FluidTankBlockEntity tank)) return;
 
-	public static FluidTankMountedStorage fromTank(FluidTankBlockEntity tank) {
-		// tank has update callbacks, make an isolated copy
-		FluidTank inventory = tank.getTankInventory();
-		return new FluidTankMountedStorage(inventory.getCapacity(), inventory.getFluid().copy());
-	}
+        FluidTank inv = tank.getTankInventory();
+        inv.setFluid(this.getFluid());
+        float fillLevel = inv.getFluidAmount() / (float) inv.getCapacity();
+        if (tank.getFluidLevel() == null) {
+            tank.setFluidLevel(LerpedFloat.linear().startWithValue(fillLevel));
+        }
+        tank.getFluidLevel().chase(fillLevel, 0.5, LerpedFloat.Chaser.EXP);
+    }
 
-	public static FluidTankMountedStorage fromLegacy(HolderLookup.Provider registries, CompoundTag nbt) {
-		int capacity = nbt.getInt("Capacity");
-		FluidStack fluid = FluidStack.parseOptional(registries, nbt);
-		return new FluidTankMountedStorage(capacity, fluid);
-	}
+    public static FluidTankMountedStorage fromTank(FluidTankBlockEntity tank) {
+        // tank has update callbacks, make an isolated copy
+        FluidTank inventory = tank.getTankInventory();
+        return new FluidTankMountedStorage(inventory.getCapacity(), inventory.getFluid().copy());
+    }
 
-	public static final class Handler extends FluidTank {
-		private Runnable onChange = () -> {};
+    public static FluidTankMountedStorage fromLegacy(
+            HolderLookup.Provider registries, CompoundTag nbt) {
+        int capacity = nbt.getInt("Capacity");
+        FluidStack fluid = FluidStack.parseOptional(registries, nbt);
+        return new FluidTankMountedStorage(capacity, fluid);
+    }
 
-		public Handler(long capacity, FluidStack stack) {
-			super(capacity);
-			Objects.requireNonNull(stack);
-			this.setFluid(stack);
-		}
+    public static final class Handler extends FluidTank {
+        private Runnable onChange = () -> {};
 
-		@Override
-		protected void onContentsChanged() {
-			this.onChange.run();
-		}
-	}
+        public Handler(long capacity, FluidStack stack) {
+            super(capacity);
+            Objects.requireNonNull(stack);
+            this.setFluid(stack);
+        }
+
+        @Override
+        protected void onContentsChanged() {
+            this.onChange.run();
+        }
+    }
 }

@@ -1,8 +1,17 @@
 import os
 
 dataDir = "../src/generated/resources/data/"
-mods = {"silents_mechanisms", "immersiveengineering", "mekanism", "eidolon", "mysticalworld", "thermal", "iceandfire"}
+mods = {
+    "silents_mechanisms",
+    "immersiveengineering",
+    "mekanism",
+    "eidolon",
+    "mysticalworld",
+    "thermal",
+    "iceandfire",
+}
 toMove = []
+
 
 def iterateDir(dir):
     for fileName in os.listdir(dir):

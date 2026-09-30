@@ -1,7 +1,5 @@
 package com.simibubi.create.foundation.blockEntity;
 
-import javax.annotation.ParametersAreNonnullByDefault;
-
 import io.github.fabricators_of_create.porting_lib.blocks.extensions.CustomDataPacketHandlingBlockEntity;
 import io.github.fabricators_of_create.porting_lib.blocks.extensions.CustomUpdateTagHandlingBlockEntity;
 
@@ -20,58 +18,65 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 
+import javax.annotation.ParametersAreNonnullByDefault;
+
 @MethodsReturnNonnullByDefault
 @ParametersAreNonnullByDefault
-public abstract class SyncedBlockEntity extends BlockEntity implements CustomDataPacketHandlingBlockEntity, CustomUpdateTagHandlingBlockEntity {
+public abstract class SyncedBlockEntity extends BlockEntity
+        implements CustomDataPacketHandlingBlockEntity, CustomUpdateTagHandlingBlockEntity {
 
-	public SyncedBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state) {
-		super(type, pos, state);
-	}
+    public SyncedBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state) {
+        super(type, pos, state);
+    }
 
-	@Override
-	public CompoundTag getUpdateTag(HolderLookup.Provider registries) {
-		return writeClient(new CompoundTag(), registries);
-	}
+    @Override
+    public CompoundTag getUpdateTag(HolderLookup.Provider registries) {
+        return writeClient(new CompoundTag(), registries);
+    }
 
-	@Override
-	public ClientboundBlockEntityDataPacket getUpdatePacket() {
-		return ClientboundBlockEntityDataPacket.create(this);
-	}
+    @Override
+    public ClientboundBlockEntityDataPacket getUpdatePacket() {
+        return ClientboundBlockEntityDataPacket.create(this);
+    }
 
-	@Override
-	public void handleUpdateTag(CompoundTag tag, HolderLookup.Provider registries) {
-		readClient(tag, registries);
-	}
+    @Override
+    public void handleUpdateTag(CompoundTag tag, HolderLookup.Provider registries) {
+        readClient(tag, registries);
+    }
 
-	@Override
-	public void onDataPacket(Connection net, ClientboundBlockEntityDataPacket pkt, HolderLookup.Provider registries) {
-		CompoundTag tag = pkt.getTag();
-		readClient(tag == null ? new CompoundTag() : tag, registries);
-	}
+    @Override
+    public void onDataPacket(
+            Connection net,
+            ClientboundBlockEntityDataPacket pkt,
+            HolderLookup.Provider registries) {
+        CompoundTag tag = pkt.getTag();
+        readClient(tag == null ? new CompoundTag() : tag, registries);
+    }
 
-	// Special handling for client update packets
-	public void readClient(CompoundTag tag, HolderLookup.Provider registries) {
-		loadAdditional(tag, registries);
-	}
+    // Special handling for client update packets
+    public void readClient(CompoundTag tag, HolderLookup.Provider registries) {
+        loadAdditional(tag, registries);
+    }
 
-	// Special handling for client update packets
-	public CompoundTag writeClient(CompoundTag tag, HolderLookup.Provider registries) {
-		saveAdditional(tag, registries);
-		return tag;
-	}
+    // Special handling for client update packets
+    public CompoundTag writeClient(CompoundTag tag, HolderLookup.Provider registries) {
+        saveAdditional(tag, registries);
+        return tag;
+    }
 
-	public void sendData() {
-		if (level instanceof ServerLevel serverLevel)
-			serverLevel.getChunkSource().blockChanged(getBlockPos());
-	}
+    public void sendData() {
+        if (level instanceof ServerLevel serverLevel)
+            serverLevel.getChunkSource().blockChanged(getBlockPos());
+    }
 
-	public void notifyUpdate() {
-		setChanged();
-		sendData();
-	}
+    public void notifyUpdate() {
+        setChanged();
+        sendData();
+    }
 
-	public HolderGetter<Block> blockHolderGetter() {
-		return level != null ? level.holderLookup(Registries.BLOCK) : BuiltInRegistries.BLOCK.asLookup();
-	}
-
+    public HolderGetter<Block> blockHolderGetter() {
+        return level != null
+                ? level.holderLookup(Registries.BLOCK)
+                : BuiltInRegistries.BLOCK.asLookup();
+    }
 }

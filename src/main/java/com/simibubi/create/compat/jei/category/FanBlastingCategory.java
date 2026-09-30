@@ -10,22 +10,21 @@ import net.minecraft.world.level.material.Fluids;
 
 public class FanBlastingCategory extends ProcessingViaFanCategory<AbstractCookingRecipe> {
 
-	public FanBlastingCategory(Info<AbstractCookingRecipe> info) {
-		super(info);
-	}
+    public FanBlastingCategory(Info<AbstractCookingRecipe> info) {
+        super(info);
+    }
 
-	@Override
-	protected AllGuiTextures getBlockShadow() {
-		return AllGuiTextures.JEI_LIGHT;
-	}
+    @Override
+    protected AllGuiTextures getBlockShadow() {
+        return AllGuiTextures.JEI_LIGHT;
+    }
 
-	@Override
-	protected void renderAttachedBlock(GuiGraphics graphics) {
-		GuiGameElement.of(Fluids.LAVA)
-			.scale(SCALE)
-			.atLocal(0, 0, 2)
-			.lighting(AnimatedKinetics.DEFAULT_LIGHTING)
-			.render(graphics);
-	}
-
+    @Override
+    protected void renderAttachedBlock(GuiGraphics graphics) {
+        GuiGameElement.of(Fluids.LAVA)
+                .scale(SCALE)
+                .atLocal(0, 0, 2)
+                .lighting(AnimatedKinetics.DEFAULT_LIGHTING)
+                .render(graphics);
+    }
 }

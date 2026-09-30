@@ -8,6 +8,7 @@ import dev.emi.trinkets.api.SlotReference;
 import dev.emi.trinkets.api.TrinketInventory;
 import dev.emi.trinkets.api.TrinketsApi;
 import dev.emi.trinkets.api.client.TrinketRenderer;
+
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.model.EntityModel;
 import net.minecraft.client.model.PlayerModel;
@@ -20,46 +21,64 @@ import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
 
 public class GoggleTrinketRenderer implements TrinketRenderer {
-	@Override
-	public void render(ItemStack stack, SlotReference slotReference, EntityModel<? extends LivingEntity> model,
-					   PoseStack matrices, MultiBufferSource multiBufferSource, int light, LivingEntity entity,
-					   float limbAngle, float limbDistance, float tickDelta, float animationProgress,
-					   float headYaw, float headPitch) {
-		if (AllItems.GOGGLES.isIn(stack) &&
-				model instanceof PlayerModel playerModel &&
-				entity instanceof AbstractClientPlayer player) {
+    @Override
+    public void render(
+            ItemStack stack,
+            SlotReference slotReference,
+            EntityModel<? extends LivingEntity> model,
+            PoseStack matrices,
+            MultiBufferSource multiBufferSource,
+            int light,
+            LivingEntity entity,
+            float limbAngle,
+            float limbDistance,
+            float tickDelta,
+            float animationProgress,
+            float headYaw,
+            float headPitch) {
+        if (AllItems.GOGGLES.isIn(stack)
+                && model instanceof PlayerModel playerModel
+                && entity instanceof AbstractClientPlayer player) {
 
-			// Translate and rotate with our head
-			matrices.pushPose();
-			TrinketRenderer.followBodyRotations(entity, playerModel);
-			TrinketRenderer.translateToFace(matrices, playerModel, player, headYaw, headPitch);
+            // Translate and rotate with our head
+            matrices.pushPose();
+            TrinketRenderer.followBodyRotations(entity, playerModel);
+            TrinketRenderer.translateToFace(matrices, playerModel, player, headYaw, headPitch);
 
-			// Translate and scale to our head
-			matrices.translate(0, 0, 0.3);
-			matrices.mulPose(Axis.ZP.rotationDegrees(180.0f));
-			matrices.scale(0.625f, 0.625f, 0.625f);
+            // Translate and scale to our head
+            matrices.translate(0, 0, 0.3);
+            matrices.mulPose(Axis.ZP.rotationDegrees(180.0f));
+            matrices.scale(0.625f, 0.625f, 0.625f);
 
-			if (headOccupied(entity)) {
-				matrices.mulPose(Axis.ZP.rotationDegrees(180.0f));
-				matrices.translate(0, -0.25, 0);
-			}
+            if (headOccupied(entity)) {
+                matrices.mulPose(Axis.ZP.rotationDegrees(180.0f));
+                matrices.translate(0, -0.25, 0);
+            }
 
-			// Render
-			Minecraft mc = Minecraft.getInstance();
-			mc.getItemRenderer()
-					.renderStatic(stack, ItemDisplayContext.HEAD, light, OverlayTexture.NO_OVERLAY, matrices,
-							multiBufferSource, mc.level, 0);
-			matrices.popPose();
-		}
-	}
+            // Render
+            Minecraft mc = Minecraft.getInstance();
+            mc.getItemRenderer()
+                    .renderStatic(
+                            stack,
+                            ItemDisplayContext.HEAD,
+                            light,
+                            OverlayTexture.NO_OVERLAY,
+                            matrices,
+                            multiBufferSource,
+                            mc.level,
+                            0);
+            matrices.popPose();
+        }
+    }
 
-	public static boolean headOccupied(LivingEntity entity) {
-		if (!entity.getItemBySlot(EquipmentSlot.HEAD).isEmpty())
-			return true;
-		return TrinketsApi.getTrinketComponent(entity)
-				.filter(component -> {							 // guaranteed  // may be null
-					TrinketInventory inv = component.getInventory().get("head").get("hat");
-					return inv != null && !inv.isEmpty();
-				}).isPresent();
-	}
+    public static boolean headOccupied(LivingEntity entity) {
+        if (!entity.getItemBySlot(EquipmentSlot.HEAD).isEmpty()) return true;
+        return TrinketsApi.getTrinketComponent(entity)
+                .filter(
+                        component -> { // guaranteed  // may be null
+                            TrinketInventory inv = component.getInventory().get("head").get("hat");
+                            return inv != null && !inv.isEmpty();
+                        })
+                .isPresent();
+    }
 }

@@ -1,17 +1,20 @@
 package com.simibubi.create.foundation.mixin.accessor;
 
-import java.util.List;
+import net.minecraft.data.loot.LootTableProvider;
 
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Mutable;
 import org.spongepowered.asm.mixin.gen.Accessor;
 
-import net.minecraft.data.loot.LootTableProvider;
+import java.util.List;
 
-/** Registrate-Fabric 1.3.77 передаёт в LootTableProvider ванильные сабпровайдеры вместо своих (getTables). */
+/**
+ * Registrate-Fabric 1.3.77 передаёт в LootTableProvider ванильные сабпровайдеры вместо своих
+ * (getTables).
+ */
 @Mixin(LootTableProvider.class)
 public interface LootTableProviderSubProvidersAccessor {
-	@Accessor("subProviders")
-	@Mutable
-	void create$setSubProviders(List<LootTableProvider.SubProviderEntry> subProviders);
+    @Accessor("subProviders")
+    @Mutable
+    void create$setSubProviders(List<LootTableProvider.SubProviderEntry> subProviders);
 }

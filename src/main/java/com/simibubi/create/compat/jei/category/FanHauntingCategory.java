@@ -10,22 +10,21 @@ import net.minecraft.world.level.block.Blocks;
 
 public class FanHauntingCategory extends ProcessingViaFanCategory.MultiOutput<HauntingRecipe> {
 
-	public FanHauntingCategory(Info<HauntingRecipe> info) {
-		super(info);
-	}
+    public FanHauntingCategory(Info<HauntingRecipe> info) {
+        super(info);
+    }
 
-	@Override
-	protected AllGuiTextures getBlockShadow() {
-		return AllGuiTextures.JEI_LIGHT;
-	}
+    @Override
+    protected AllGuiTextures getBlockShadow() {
+        return AllGuiTextures.JEI_LIGHT;
+    }
 
-	@Override
-	protected void renderAttachedBlock(GuiGraphics graphics) {
-		GuiGameElement.of(Blocks.SOUL_FIRE.defaultBlockState())
-			.scale(SCALE)
-			.atLocal(0, 0, 2)
-			.lighting(AnimatedKinetics.DEFAULT_LIGHTING)
-			.render(graphics);
-	}
-
+    @Override
+    protected void renderAttachedBlock(GuiGraphics graphics) {
+        GuiGameElement.of(Blocks.SOUL_FIRE.defaultBlockState())
+                .scale(SCALE)
+                .atLocal(0, 0, 2)
+                .lighting(AnimatedKinetics.DEFAULT_LIGHTING)
+                .render(graphics);
+    }
 }

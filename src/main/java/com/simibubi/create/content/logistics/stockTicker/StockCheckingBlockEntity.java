@@ -1,9 +1,5 @@
 package com.simibubi.create.content.logistics.stockTicker;
 
-import java.util.List;
-
-import javax.annotation.Nullable;
-
 import com.simibubi.create.content.logistics.packager.InventorySummary;
 import com.simibubi.create.content.logistics.packager.fabric.InventoryIdentifier;
 import com.simibubi.create.content.logistics.packagerLink.LogisticallyLinkedBehaviour;
@@ -16,36 +12,44 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 
+import java.util.List;
+
+import javax.annotation.Nullable;
+
 public abstract class StockCheckingBlockEntity extends SmartBlockEntity {
 
-	public LogisticallyLinkedBehaviour behaviour;
+    public LogisticallyLinkedBehaviour behaviour;
 
-	public StockCheckingBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state) {
-		super(type, pos, state);
-		setLazyTickRate(10);
-	}
+    public StockCheckingBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state) {
+        super(type, pos, state);
+        setLazyTickRate(10);
+    }
 
-	@Override
-	public void addBehaviours(List<BlockEntityBehaviour> behaviours) {
-		behaviours.add(behaviour = new LogisticallyLinkedBehaviour(this, false));
-	}
+    @Override
+    public void addBehaviours(List<BlockEntityBehaviour> behaviours) {
+        behaviours.add(behaviour = new LogisticallyLinkedBehaviour(this, false));
+    }
 
-	public InventorySummary getRecentSummary() {
-		return LogisticsManager.getSummaryOfNetwork(behaviour.freqId, false);
-	}
+    public InventorySummary getRecentSummary() {
+        return LogisticsManager.getSummaryOfNetwork(behaviour.freqId, false);
+    }
 
-	public InventorySummary getAccurateSummary() {
-		return LogisticsManager.getSummaryOfNetwork(behaviour.freqId, true);
-	}
+    public InventorySummary getAccurateSummary() {
+        return LogisticsManager.getSummaryOfNetwork(behaviour.freqId, true);
+    }
 
-	public boolean broadcastPackageRequest(RequestType type, PackageOrder order, InventoryIdentifier identifier,
-		String address) {
-		return broadcastPackageRequest(type, order, identifier, address, null);
-	}
+    public boolean broadcastPackageRequest(
+            RequestType type, PackageOrder order, InventoryIdentifier identifier, String address) {
+        return broadcastPackageRequest(type, order, identifier, address, null);
+    }
 
-	public boolean broadcastPackageRequest(RequestType type, PackageOrder order, InventoryIdentifier identifier,
-		String address, @Nullable PackageOrder orderContext) {
-		return LogisticsManager.broadcastPackageRequest(behaviour.freqId, type, order, identifier, address, orderContext);
-	}
-
+    public boolean broadcastPackageRequest(
+            RequestType type,
+            PackageOrder order,
+            InventoryIdentifier identifier,
+            String address,
+            @Nullable PackageOrder orderContext) {
+        return LogisticsManager.broadcastPackageRequest(
+                behaviour.freqId, type, order, identifier, address, orderContext);
+    }
 }

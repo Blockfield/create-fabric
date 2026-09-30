@@ -1,19 +1,19 @@
 package com.simibubi.create.infrastructure.fabric;
 
-import java.util.function.Function;
-
 import net.fabricmc.fabric.api.event.Event;
 import net.fabricmc.fabric.api.event.EventFactory;
 
+import java.util.function.Function;
+
 public class EventUtil {
-	@SuppressWarnings("unchecked")
-	static <T> Event<T> create(Function<T[], T> invoker) {
-		T probe = invoker.apply(null);
-		Class<?>[] interfaces = probe.getClass().getInterfaces();
-		if (interfaces.length != 1) {
-			throw new IllegalArgumentException("Cannot create event from probe " + probe);
-		}
-		Class<T> clazz = (Class<T>) interfaces[0];
-		return EventFactory.createArrayBacked(clazz, invoker);
-	}
+    @SuppressWarnings("unchecked")
+    static <T> Event<T> create(Function<T[], T> invoker) {
+        T probe = invoker.apply(null);
+        Class<?>[] interfaces = probe.getClass().getInterfaces();
+        if (interfaces.length != 1) {
+            throw new IllegalArgumentException("Cannot create event from probe " + probe);
+        }
+        Class<T> clazz = (Class<T>) interfaces[0];
+        return EventFactory.createArrayBacked(clazz, invoker);
+    }
 }

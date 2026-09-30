@@ -5,39 +5,33 @@ import com.simibubi.create.infrastructure.config.AllConfigs;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.phys.AABB;
 
-import net.fabricmc.api.EnvType;
-import net.fabricmc.api.Environment;
-
 public class DisplayLinkBlockItem extends ClickToLinkBlockItem {
 
-	public DisplayLinkBlockItem(Block pBlock, Properties pProperties) {
-		super(pBlock, pProperties);
-	}
+    public DisplayLinkBlockItem(Block pBlock, Properties pProperties) {
+        super(pBlock, pProperties);
+    }
 
-	@Environment(EnvType.CLIENT)
-	public AABB getSelectionBounds(BlockPos pos) {
-		Level world = Minecraft.getInstance().level;
-		DisplayTarget target = DisplayTarget.get(world, pos);
-		if (target != null)
-			return target.getMultiblockBounds(world, pos);
-		return super.getSelectionBounds(pos);
-	}
+    @Environment(EnvType.CLIENT)
+    public AABB getSelectionBounds(BlockPos pos) {
+        Level world = Minecraft.getInstance().level;
+        DisplayTarget target = DisplayTarget.get(world, pos);
+        if (target != null) return target.getMultiblockBounds(world, pos);
+        return super.getSelectionBounds(pos);
+    }
 
-	@Override
-	public int getMaxDistanceFromSelection() {
-		return AllConfigs.server().logistics.displayLinkRange.get();
-	}
+    @Override
+    public int getMaxDistanceFromSelection() {
+        return AllConfigs.server().logistics.displayLinkRange.get();
+    }
 
-	@Override
-	public String getMessageTranslationKey() {
-		return "display_link";
-	}
-
+    @Override
+    public String getMessageTranslationKey() {
+        return "display_link";
+    }
 }

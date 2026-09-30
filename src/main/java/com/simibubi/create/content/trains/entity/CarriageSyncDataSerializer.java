@@ -1,12 +1,13 @@
 package com.simibubi.create.content.trains.entity;
 
-//import net.minecraft.network.RegistryFriendlyByteBuf;
-//import net.minecraft.network.codec.StreamCodec;
-//import net.minecraft.network.syncher.EntityDataSerializer;
+// import net.minecraft.network.RegistryFriendlyByteBuf;
+// import net.minecraft.network.codec.StreamCodec;
+// import net.minecraft.network.syncher.EntityDataSerializer;
 //
-//public class CarriageSyncDataSerializer implements EntityDataSerializer<CarriageSyncData> {
+// public class CarriageSyncDataSerializer implements EntityDataSerializer<CarriageSyncData> {
 //
-//	private static final StreamCodec<RegistryFriendlyByteBuf, CarriageSyncData> STREAM_CODEC = StreamCodec.of(
+//	private static final StreamCodec<RegistryFriendlyByteBuf, CarriageSyncData> STREAM_CODEC =
+// StreamCodec.of(
 //			(buf, data) -> data.write(buf),
 //			CarriageSyncData::new
 //	);
@@ -21,4 +22,4 @@ package com.simibubi.create.content.trains.entity;
 //		return data.copy();
 //	}
 //
-//}
+// }

@@ -1,10 +1,10 @@
 package com.simibubi.create.content.trains.observer;
 
-import io.github.fabricators_of_create.porting_lib.blocks.extensions.ConnectableRedstoneBlock;
-
 import com.simibubi.create.AllBlockEntityTypes;
 import com.simibubi.create.content.equipment.wrench.IWrenchable;
 import com.simibubi.create.foundation.block.IBE;
+
+import io.github.fabricators_of_create.porting_lib.blocks.extensions.ConnectableRedstoneBlock;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -17,48 +17,51 @@ import net.minecraft.world.level.block.state.StateDefinition.Builder;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.BooleanProperty;
 
-public class TrackObserverBlock extends Block implements IBE<TrackObserverBlockEntity>, IWrenchable, ConnectableRedstoneBlock {
+public class TrackObserverBlock extends Block
+        implements IBE<TrackObserverBlockEntity>, IWrenchable, ConnectableRedstoneBlock {
 
-	public static final BooleanProperty POWERED = BlockStateProperties.POWERED;
+    public static final BooleanProperty POWERED = BlockStateProperties.POWERED;
 
-	public TrackObserverBlock(Properties p_49795_) {
-		super(p_49795_);
-		registerDefaultState(defaultBlockState().setValue(POWERED, false));
-	}
+    public TrackObserverBlock(Properties p_49795_) {
+        super(p_49795_);
+        registerDefaultState(defaultBlockState().setValue(POWERED, false));
+    }
 
-	@Override
-	protected void createBlockStateDefinition(Builder<Block, BlockState> pBuilder) {
-		super.createBlockStateDefinition(pBuilder.add(POWERED));
-	}
+    @Override
+    protected void createBlockStateDefinition(Builder<Block, BlockState> pBuilder) {
+        super.createBlockStateDefinition(pBuilder.add(POWERED));
+    }
 
-	@Override
-	public boolean isSignalSource(BlockState state) {
-		return true;
-	}
+    @Override
+    public boolean isSignalSource(BlockState state) {
+        return true;
+    }
 
-	@Override
-	public int getSignal(BlockState blockState, BlockGetter blockAccess, BlockPos pos, Direction side) {
-		return blockState.getValue(POWERED) ? 15 : 0;
-	}
+    @Override
+    public int getSignal(
+            BlockState blockState, BlockGetter blockAccess, BlockPos pos, Direction side) {
+        return blockState.getValue(POWERED) ? 15 : 0;
+    }
 
-	@Override
-	public boolean canConnectRedstone(BlockState state, BlockGetter world, BlockPos pos, Direction side) {
-		return true;
-	}
+    @Override
+    public boolean canConnectRedstone(
+            BlockState state, BlockGetter world, BlockPos pos, Direction side) {
+        return true;
+    }
 
-	@Override
-	public Class<TrackObserverBlockEntity> getBlockEntityClass() {
-		return TrackObserverBlockEntity.class;
-	}
+    @Override
+    public Class<TrackObserverBlockEntity> getBlockEntityClass() {
+        return TrackObserverBlockEntity.class;
+    }
 
-	@Override
-	public BlockEntityType<? extends TrackObserverBlockEntity> getBlockEntityType() {
-		return AllBlockEntityTypes.TRACK_OBSERVER.get();
-	}
+    @Override
+    public BlockEntityType<? extends TrackObserverBlockEntity> getBlockEntityType() {
+        return AllBlockEntityTypes.TRACK_OBSERVER.get();
+    }
 
-	@Override
-	public void onRemove(BlockState state, Level worldIn, BlockPos pos, BlockState newState, boolean isMoving) {
-		IBE.onRemove(state, worldIn, pos, newState);
-	}
-
+    @Override
+    public void onRemove(
+            BlockState state, Level worldIn, BlockPos pos, BlockState newState, boolean isMoving) {
+        IBE.onRemove(state, worldIn, pos, newState);
+    }
 }

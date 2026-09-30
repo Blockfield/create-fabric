@@ -1,8 +1,5 @@
 package com.simibubi.create.content.kinetics.deployer;
 
-import java.util.List;
-import java.util.Set;
-
 import com.simibubi.create.AllBlocks;
 import com.simibubi.create.AllRecipeTypes;
 import com.simibubi.create.AllTags.AllItemTags;
@@ -14,70 +11,71 @@ import com.simibubi.create.foundation.utility.CreateLang;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.Ingredient;
-import net.minecraft.world.item.crafting.Recipe;
 import net.minecraft.world.item.crafting.RecipeHolder;
 import net.minecraft.world.level.ItemLike;
 
-import net.fabricmc.api.EnvType;
-import net.fabricmc.api.Environment;
+import java.util.List;
+import java.util.Set;
 
 public class DeployerApplicationRecipe extends ItemApplicationRecipe implements IAssemblyRecipe {
 
-	public DeployerApplicationRecipe(ProcessingRecipeParams params) {
-		super(AllRecipeTypes.DEPLOYING, params);
-	}
+    public DeployerApplicationRecipe(ProcessingRecipeParams params) {
+        super(AllRecipeTypes.DEPLOYING, params);
+    }
 
-	@Override
-	protected int getMaxOutputCount() {
-		return 4;
-	}
+    @Override
+    protected int getMaxOutputCount() {
+        return 4;
+    }
 
-	public static RecipeHolder<DeployerApplicationRecipe> convert(RecipeHolder<?> sandpaperRecipe) {
-		ResourceLocation id = ResourceLocation.fromNamespaceAndPath(
-				sandpaperRecipe.id().getNamespace(),
-				sandpaperRecipe.id().getPath() + "_using_deployer"
-		);
-		DeployerApplicationRecipe recipe = new ProcessingRecipeBuilder<>(DeployerApplicationRecipe::new, id)
-				.require(sandpaperRecipe.value().getIngredients()
-						.get(0))
-						.require(AllItemTags.SANDPAPER.tag)
-						.output(sandpaperRecipe.value().getResultItem(Minecraft.getInstance().level.registryAccess()))
-						.build();
+    public static RecipeHolder<DeployerApplicationRecipe> convert(RecipeHolder<?> sandpaperRecipe) {
+        ResourceLocation id =
+                ResourceLocation.fromNamespaceAndPath(
+                        sandpaperRecipe.id().getNamespace(),
+                        sandpaperRecipe.id().getPath() + "_using_deployer");
+        DeployerApplicationRecipe recipe =
+                new ProcessingRecipeBuilder<>(DeployerApplicationRecipe::new, id)
+                        .require(sandpaperRecipe.value().getIngredients().get(0))
+                        .require(AllItemTags.SANDPAPER.tag)
+                        .output(
+                                sandpaperRecipe
+                                        .value()
+                                        .getResultItem(
+                                                Minecraft.getInstance().level.registryAccess()))
+                        .build();
 
-		return new RecipeHolder<>(id, recipe);
-	}
+        return new RecipeHolder<>(id, recipe);
+    }
 
-	@Override
-	public void addAssemblyIngredients(List<Ingredient> list) {
-		list.add(ingredients.get(1));
-	}
+    @Override
+    public void addAssemblyIngredients(List<Ingredient> list) {
+        list.add(ingredients.get(1));
+    }
 
-	@Override
-	@Environment(EnvType.CLIENT)
-	public Component getDescriptionForAssembly() {
-		ItemStack[] matchingStacks = ingredients.get(1)
-			.getItems();
-		if (matchingStacks.length == 0) {
+    @Override
+    @Environment(EnvType.CLIENT)
+    public Component getDescriptionForAssembly() {
+        ItemStack[] matchingStacks = ingredients.get(1).getItems();
+        if (matchingStacks.length == 0) {
             return Component.literal("Invalid");
         }
-		return CreateLang.translateDirect("recipe.assembly.deploying_item",
-			Component.translatable(matchingStacks[0].getDescriptionId()).getString());
-	}
+        return CreateLang.translateDirect(
+                "recipe.assembly.deploying_item",
+                Component.translatable(matchingStacks[0].getDescriptionId()).getString());
+    }
 
-	@Override
-	public void addRequiredMachines(Set<ItemLike> list) {
-		list.add(AllBlocks.DEPLOYER.get());
-	}
+    @Override
+    public void addRequiredMachines(Set<ItemLike> list) {
+        list.add(AllBlocks.DEPLOYER.get());
+    }
 
-	@Override
-	public SequencedAssemblySubCategoryType getJEISubCategory() {
-		return SequencedAssemblySubCategoryType.DEPLOYING;
-	}
-
+    @Override
+    public SequencedAssemblySubCategoryType getJEISubCategory() {
+        return SequencedAssemblySubCategoryType.DEPLOYING;
+    }
 }

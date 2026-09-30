@@ -1,23 +1,5 @@
 package com.simibubi.create.content.trains.track;
 
-import io.github.fabricators_of_create.porting_lib.blocks.extensions.CustomRenderBoundingBoxBlockEntity;
-
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.Optional;
-import java.util.Set;
-
-import net.fabricmc.api.EnvType;
-
-import net.fabricmc.api.Environment;
-
-import net.fabricmc.fabric.api.blockview.v2.RenderDataBlockEntity;
-
-import org.jetbrains.annotations.Nullable;
-
 import com.simibubi.create.AllBlocks;
 import com.simibubi.create.AllTags;
 import com.simibubi.create.api.contraption.transformable.TransformableBlockEntity;
@@ -28,11 +10,17 @@ import com.simibubi.create.foundation.blockEntity.IMergeableBE;
 import com.simibubi.create.foundation.blockEntity.RemoveBlockEntityPacket;
 import com.simibubi.create.foundation.blockEntity.SmartBlockEntity;
 import com.simibubi.create.foundation.blockEntity.behaviour.BlockEntityBehaviour;
-import net.createmod.catnip.platform.CatnipServices;
-import com.simibubi.create.foundation.utility.DistExecutor;
+
 import dev.engine_room.flywheel.lib.visualization.VisualizationHelper;
+
+import io.github.fabricators_of_create.porting_lib.blocks.extensions.CustomRenderBoundingBoxBlockEntity;
+
 import net.createmod.catnip.data.Pair;
 import net.createmod.catnip.nbt.NBTHelper;
+import net.createmod.catnip.platform.CatnipServices;
+import net.fabricmc.api.EnvType;
+import net.fabricmc.api.Environment;
+import net.fabricmc.fabric.api.blockview.v2.RenderDataBlockEntity;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction.Axis;
 import net.minecraft.core.HolderLookup;
@@ -55,370 +43,381 @@ import net.minecraft.world.level.material.Fluids;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
-import net.fabricmc.api.EnvType;
-import net.fabricmc.api.Environment;
-import net.fabricmc.fabric.api.blockview.v2.RenderDataBlockEntity;
+import org.jetbrains.annotations.Nullable;
 
-public class TrackBlockEntity extends SmartBlockEntity implements TransformableBlockEntity, IMergeableBE, RenderDataBlockEntity {
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Optional;
+import java.util.Set;
 
-	Map<BlockPos, BezierConnection> connections;
-	boolean cancelDrops;
+public class TrackBlockEntity extends SmartBlockEntity
+        implements TransformableBlockEntity, IMergeableBE, RenderDataBlockEntity {
 
-	public Pair<ResourceKey<Level>, BlockPos> boundLocation;
-	public TrackBlockEntityTilt tilt;
+    Map<BlockPos, BezierConnection> connections;
+    boolean cancelDrops;
 
-	public TrackBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state) {
-		super(type, pos, state);
-		connections = new HashMap<>();
-		setLazyTickRate(100);
-		tilt = new TrackBlockEntityTilt(this);
-	}
+    public Pair<ResourceKey<Level>, BlockPos> boundLocation;
+    public TrackBlockEntityTilt tilt;
 
-	public Map<BlockPos, BezierConnection> getConnections() {
-		return connections;
-	}
+    public TrackBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state) {
+        super(type, pos, state);
+        connections = new HashMap<>();
+        setLazyTickRate(100);
+        tilt = new TrackBlockEntityTilt(this);
+    }
 
-	@Override
-	public void initialize() {
-		super.initialize();
-		if (!level.isClientSide && hasInteractableConnections())
-			registerToCurveInteraction();
-	}
+    public Map<BlockPos, BezierConnection> getConnections() {
+        return connections;
+    }
 
-	@Override
-	public void tick() {
-		super.tick();
-		tilt.undoSmoothing();
-	}
+    @Override
+    public void initialize() {
+        super.initialize();
+        if (!level.isClientSide && hasInteractableConnections()) registerToCurveInteraction();
+    }
 
-	@Override
-	public void lazyTick() {
-		for (BezierConnection connection : connections.values())
-			if (connection.isPrimary())
-				manageFakeTracksAlong(connection, false);
-	}
+    @Override
+    public void tick() {
+        super.tick();
+        tilt.undoSmoothing();
+    }
 
-	public void validateConnections() {
-		Set<BlockPos> invalid = new HashSet<>();
+    @Override
+    public void lazyTick() {
+        for (BezierConnection connection : connections.values())
+            if (connection.isPrimary()) manageFakeTracksAlong(connection, false);
+    }
 
-		for (Entry<BlockPos, BezierConnection> entry : connections.entrySet()) {
-			BlockPos key = entry.getKey();
-			BezierConnection bc = entry.getValue();
+    public void validateConnections() {
+        Set<BlockPos> invalid = new HashSet<>();
 
-			if (!key.equals(bc.getKey()) || !worldPosition.equals(bc.bePositions.getFirst())) {
-				invalid.add(key);
-				continue;
-			}
+        for (Entry<BlockPos, BezierConnection> entry : connections.entrySet()) {
+            BlockPos key = entry.getKey();
+            BezierConnection bc = entry.getValue();
 
-			BlockState blockState = level.getBlockState(key);
-			if (blockState.getBlock()instanceof ITrackBlock trackBlock && !blockState.getValue(TrackBlock.HAS_BE))
-				for (Vec3 v : trackBlock.getTrackAxes(level, key, blockState)) {
-					Vec3 bcEndAxis = bc.axes.getSecond();
-					if (v.distanceTo(bcEndAxis) < 1 / 1024f || v.distanceTo(bcEndAxis.scale(-1)) < 1 / 1024f)
-						level.setBlock(key, blockState.setValue(TrackBlock.HAS_BE, true), 3);
-				}
+            if (!key.equals(bc.getKey()) || !worldPosition.equals(bc.bePositions.getFirst())) {
+                invalid.add(key);
+                continue;
+            }
 
-			BlockEntity blockEntity = level.getBlockEntity(key);
-			if (!(blockEntity instanceof TrackBlockEntity trackBE) || blockEntity.isRemoved()) {
-				invalid.add(key);
-				continue;
-			}
+            BlockState blockState = level.getBlockState(key);
+            if (blockState.getBlock() instanceof ITrackBlock trackBlock
+                    && !blockState.getValue(TrackBlock.HAS_BE))
+                for (Vec3 v : trackBlock.getTrackAxes(level, key, blockState)) {
+                    Vec3 bcEndAxis = bc.axes.getSecond();
+                    if (v.distanceTo(bcEndAxis) < 1 / 1024f
+                            || v.distanceTo(bcEndAxis.scale(-1)) < 1 / 1024f)
+                        level.setBlock(key, blockState.setValue(TrackBlock.HAS_BE, true), 3);
+                }
 
-			if (!trackBE.connections.containsKey(worldPosition)) {
-				trackBE.addConnection(bc.secondary());
-				trackBE.tilt.tryApplySmoothing();
-			}
-		}
+            BlockEntity blockEntity = level.getBlockEntity(key);
+            if (!(blockEntity instanceof TrackBlockEntity trackBE) || blockEntity.isRemoved()) {
+                invalid.add(key);
+                continue;
+            }
 
-		for (BlockPos blockPos : invalid)
-			removeConnection(blockPos);
-	}
+            if (!trackBE.connections.containsKey(worldPosition)) {
+                trackBE.addConnection(bc.secondary());
+                trackBE.tilt.tryApplySmoothing();
+            }
+        }
 
-	public void addConnection(BezierConnection connection) {
-		// don't replace existing connections with different materials
-		if (connections.containsKey(connection.getKey()) && connection.equalsSansMaterial(connections.get(connection.getKey())))
-			return;
-		connections.put(connection.getKey(), connection);
-		level.scheduleTick(worldPosition, getBlockState().getBlock(), 1);
-		notifyUpdate();
+        for (BlockPos blockPos : invalid) removeConnection(blockPos);
+    }
 
-		if (connection.isPrimary())
-			manageFakeTracksAlong(connection, false);
-	}
+    public void addConnection(BezierConnection connection) {
+        // don't replace existing connections with different materials
+        if (connections.containsKey(connection.getKey())
+                && connection.equalsSansMaterial(connections.get(connection.getKey()))) return;
+        connections.put(connection.getKey(), connection);
+        level.scheduleTick(worldPosition, getBlockState().getBlock(), 1);
+        notifyUpdate();
 
-	public void removeConnection(BlockPos target) {
-		if (isTilted())
-			tilt.captureSmoothingHandles();
+        if (connection.isPrimary()) manageFakeTracksAlong(connection, false);
+    }
 
-		BezierConnection removed = connections.remove(target);
-		notifyUpdate();
+    public void removeConnection(BlockPos target) {
+        if (isTilted()) tilt.captureSmoothingHandles();
 
-		if (removed != null)
-			manageFakeTracksAlong(removed, true);
+        BezierConnection removed = connections.remove(target);
+        notifyUpdate();
 
-		if (!connections.isEmpty() || getBlockState().getOptionalValue(TrackBlock.SHAPE)
-			.orElse(TrackShape.NONE)
-			.isPortal())
-			return;
+        if (removed != null) manageFakeTracksAlong(removed, true);
 
-		BlockState blockState = level.getBlockState(worldPosition);
-		if (blockState.hasProperty(TrackBlock.HAS_BE))
-			level.setBlockAndUpdate(worldPosition, blockState.setValue(TrackBlock.HAS_BE, false));
-		if (level instanceof ServerLevel serverLevel)
-			CatnipServices.NETWORK.sendToClientsTrackingChunk(serverLevel, new ChunkPos(worldPosition), new RemoveBlockEntityPacket(worldPosition));
-	}
+        if (!connections.isEmpty()
+                || getBlockState()
+                        .getOptionalValue(TrackBlock.SHAPE)
+                        .orElse(TrackShape.NONE)
+                        .isPortal()) return;
 
-	public void removeInboundConnections(boolean dropAndDiscard) {
-		for (BezierConnection bezierConnection : connections.values()) {
-			if (!(level.getBlockEntity(bezierConnection.getKey())instanceof TrackBlockEntity tbe))
-				return;
-			tbe.removeConnection(bezierConnection.bePositions.getFirst());
-			if (!dropAndDiscard)
-				continue;
-			if (!cancelDrops)
-				bezierConnection.spawnItems(level);
-			bezierConnection.spawnDestroyParticles(level);
-		}
-		if (dropAndDiscard && level instanceof ServerLevel serverLevel)
-			CatnipServices.NETWORK.sendToClientsTrackingChunk(serverLevel, new ChunkPos(worldPosition), new RemoveBlockEntityPacket(worldPosition));
-	}
+        BlockState blockState = level.getBlockState(worldPosition);
+        if (blockState.hasProperty(TrackBlock.HAS_BE))
+            level.setBlockAndUpdate(worldPosition, blockState.setValue(TrackBlock.HAS_BE, false));
+        if (level instanceof ServerLevel serverLevel)
+            CatnipServices.NETWORK.sendToClientsTrackingChunk(
+                    serverLevel,
+                    new ChunkPos(worldPosition),
+                    new RemoveBlockEntityPacket(worldPosition));
+    }
 
-	public void bind(ResourceKey<Level> boundDimension, BlockPos boundLocation) {
-		this.boundLocation = Pair.of(boundDimension, boundLocation);
-		setChanged();
-	}
+    public void removeInboundConnections(boolean dropAndDiscard) {
+        for (BezierConnection bezierConnection : connections.values()) {
+            if (!(level.getBlockEntity(bezierConnection.getKey()) instanceof TrackBlockEntity tbe))
+                return;
+            tbe.removeConnection(bezierConnection.bePositions.getFirst());
+            if (!dropAndDiscard) continue;
+            if (!cancelDrops) bezierConnection.spawnItems(level);
+            bezierConnection.spawnDestroyParticles(level);
+        }
+        if (dropAndDiscard && level instanceof ServerLevel serverLevel)
+            CatnipServices.NETWORK.sendToClientsTrackingChunk(
+                    serverLevel,
+                    new ChunkPos(worldPosition),
+                    new RemoveBlockEntityPacket(worldPosition));
+    }
 
-	public boolean isTilted() {
-		return tilt.smoothingAngle.isPresent();
-	}
+    public void bind(ResourceKey<Level> boundDimension, BlockPos boundLocation) {
+        this.boundLocation = Pair.of(boundDimension, boundLocation);
+        setChanged();
+    }
 
-	@Override
-	public void writeSafe(CompoundTag tag, HolderLookup.Provider registries) {
-		super.writeSafe(tag, registries);
-		writeTurns(tag, true);
-	}
+    public boolean isTilted() {
+        return tilt.smoothingAngle.isPresent();
+    }
 
-	@Override
-	protected void write(CompoundTag tag, HolderLookup.Provider registries, boolean clientPacket) {
-		super.write(tag, registries, clientPacket);
-		writeTurns(tag, false);
-		if (isTilted())
-			tag.putDouble("Smoothing", tilt.smoothingAngle.get());
-		if (boundLocation == null)
-			return;
-		tag.put("BoundLocation", NbtUtils.writeBlockPos(boundLocation.getSecond()));
-		tag.putString("BoundDimension", boundLocation.getFirst()
-			.location()
-			.toString());
-	}
+    @Override
+    public void writeSafe(CompoundTag tag, HolderLookup.Provider registries) {
+        super.writeSafe(tag, registries);
+        writeTurns(tag, true);
+    }
 
-	private void writeTurns(CompoundTag tag, boolean restored) {
-		ListTag listTag = new ListTag();
-		for (BezierConnection bezierConnection : connections.values())
-			listTag.add((restored ? tilt.restoreToOriginalCurve(bezierConnection.clone()) : bezierConnection)
-				.write(worldPosition));
-		tag.put("Connections", listTag);
-	}
+    @Override
+    protected void write(CompoundTag tag, HolderLookup.Provider registries, boolean clientPacket) {
+        super.write(tag, registries, clientPacket);
+        writeTurns(tag, false);
+        if (isTilted()) tag.putDouble("Smoothing", tilt.smoothingAngle.get());
+        if (boundLocation == null) return;
+        tag.put("BoundLocation", NbtUtils.writeBlockPos(boundLocation.getSecond()));
+        tag.putString("BoundDimension", boundLocation.getFirst().location().toString());
+    }
 
-	@Override
-	protected void read(CompoundTag tag, HolderLookup.Provider registries, boolean clientPacket) {
-		super.read(tag, registries, clientPacket);
-		connections.clear();
-		for (Tag t : tag.getList("Connections", Tag.TAG_COMPOUND)) {
-			if (!(t instanceof CompoundTag))
-				return;
-			BezierConnection connection = new BezierConnection((CompoundTag) t, worldPosition);
-			connections.put(connection.getKey(), connection);
-		}
+    private void writeTurns(CompoundTag tag, boolean restored) {
+        ListTag listTag = new ListTag();
+        for (BezierConnection bezierConnection : connections.values())
+            listTag.add(
+                    (restored
+                                    ? tilt.restoreToOriginalCurve(bezierConnection.clone())
+                                    : bezierConnection)
+                            .write(worldPosition));
+        tag.put("Connections", listTag);
+    }
 
-		boolean smoothingPreviously = tilt.smoothingAngle.isPresent();
-		tilt.smoothingAngle = Optional.ofNullable(tag.contains("Smoothing") ? tag.getDouble("Smoothing") : null);
-		if (smoothingPreviously != tilt.smoothingAngle.isPresent() && clientPacket) {
-			// fabric: no need for requestModelDataUpdate
-			level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), 16);
-		}
+    @Override
+    protected void read(CompoundTag tag, HolderLookup.Provider registries, boolean clientPacket) {
+        super.read(tag, registries, clientPacket);
+        connections.clear();
+        for (Tag t : tag.getList("Connections", Tag.TAG_COMPOUND)) {
+            if (!(t instanceof CompoundTag)) return;
+            BezierConnection connection = new BezierConnection((CompoundTag) t, worldPosition);
+            connections.put(connection.getKey(), connection);
+        }
 
-		CatnipServices.PLATFORM.executeOnClientOnly(() -> () -> VisualizationHelper.queueUpdate(this));
+        boolean smoothingPreviously = tilt.smoothingAngle.isPresent();
+        tilt.smoothingAngle =
+                Optional.ofNullable(tag.contains("Smoothing") ? tag.getDouble("Smoothing") : null);
+        if (smoothingPreviously != tilt.smoothingAngle.isPresent() && clientPacket) {
+            // fabric: no need for requestModelDataUpdate
+            level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), 16);
+        }
 
-		if (hasInteractableConnections())
-			registerToCurveInteraction();
-		else
-			removeFromCurveInteraction();
+        CatnipServices.PLATFORM.executeOnClientOnly(
+                () -> () -> VisualizationHelper.queueUpdate(this));
 
-		if (tag.contains("BoundLocation"))
-			boundLocation = Pair.of(
-				ResourceKey.create(Registries.DIMENSION, ResourceLocation.parse(tag.getString("BoundDimension"))),
-				NBTHelper.readBlockPos(tag, "BoundLocation"));
-	}
+        if (hasInteractableConnections()) registerToCurveInteraction();
+        else removeFromCurveInteraction();
 
-	@Override
-	@Environment(EnvType.CLIENT)
-	public AABB getRenderBoundingBox() {
-		return CustomRenderBoundingBoxBlockEntity.INFINITE_EXTENT_AABB;
-	}
+        if (tag.contains("BoundLocation"))
+            boundLocation =
+                    Pair.of(
+                            ResourceKey.create(
+                                    Registries.DIMENSION,
+                                    ResourceLocation.parse(tag.getString("BoundDimension"))),
+                            NBTHelper.readBlockPos(tag, "BoundLocation"));
+    }
 
-	@Override
-	public void addBehaviours(List<BlockEntityBehaviour> behaviours) {}
+    @Override
+    @Environment(EnvType.CLIENT)
+    public AABB getRenderBoundingBox() {
+        return CustomRenderBoundingBoxBlockEntity.INFINITE_EXTENT_AABB;
+    }
 
-	@Override
-	public void accept(BlockEntity other) {
-		if (other instanceof TrackBlockEntity track)
-			connections.putAll(track.connections);
-		validateConnections();
-		level.scheduleTick(worldPosition, getBlockState().getBlock(), 1);
-	}
+    @Override
+    public void addBehaviours(List<BlockEntityBehaviour> behaviours) {}
 
-	public boolean hasInteractableConnections() {
-		for (BezierConnection connection : connections.values())
-			if (connection.isPrimary())
-				return true;
-		return false;
-	}
+    @Override
+    public void accept(BlockEntity other) {
+        if (other instanceof TrackBlockEntity track) connections.putAll(track.connections);
+        validateConnections();
+        level.scheduleTick(worldPosition, getBlockState().getBlock(), 1);
+    }
 
-	@Override
-	public void transform(BlockEntity be, StructureTransform transform) {
-		Map<BlockPos, BezierConnection> restoredConnections = new HashMap<>();
-		for (Entry<BlockPos, BezierConnection> entry : connections.entrySet())
-			restoredConnections.put(entry.getKey(),
-				tilt.restoreToOriginalCurve(tilt.restoreToOriginalCurve(entry.getValue()
-					.secondary())
-					.secondary()));
-		connections = restoredConnections;
-		tilt.smoothingAngle = Optional.empty();
+    public boolean hasInteractableConnections() {
+        for (BezierConnection connection : connections.values())
+            if (connection.isPrimary()) return true;
+        return false;
+    }
 
-		if (transform.rotationAxis != Axis.Y)
-			return;
+    @Override
+    public void transform(BlockEntity be, StructureTransform transform) {
+        Map<BlockPos, BezierConnection> restoredConnections = new HashMap<>();
+        for (Entry<BlockPos, BezierConnection> entry : connections.entrySet())
+            restoredConnections.put(
+                    entry.getKey(),
+                    tilt.restoreToOriginalCurve(
+                            tilt.restoreToOriginalCurve(entry.getValue().secondary()).secondary()));
+        connections = restoredConnections;
+        tilt.smoothingAngle = Optional.empty();
 
-		Map<BlockPos, BezierConnection> transformedConnections = new HashMap<>();
-		for (Entry<BlockPos, BezierConnection> entry : connections.entrySet()) {
-			BezierConnection newConnection = entry.getValue();
-			newConnection.normals.replace(transform::applyWithoutOffsetUncentered);
-			newConnection.axes.replace(transform::applyWithoutOffsetUncentered);
+        if (transform.rotationAxis != Axis.Y) return;
 
-			BlockPos diff = newConnection.bePositions.getSecond()
-				.subtract(newConnection.bePositions.getFirst());
-			newConnection.bePositions
-				.setSecond(BlockPos.containing(Vec3.atCenterOf(newConnection.bePositions.getFirst())
-					.add(transform.applyWithoutOffsetUncentered(Vec3.atLowerCornerOf(diff)))));
+        Map<BlockPos, BezierConnection> transformedConnections = new HashMap<>();
+        for (Entry<BlockPos, BezierConnection> entry : connections.entrySet()) {
+            BezierConnection newConnection = entry.getValue();
+            newConnection.normals.replace(transform::applyWithoutOffsetUncentered);
+            newConnection.axes.replace(transform::applyWithoutOffsetUncentered);
 
-			Vec3 beVec = Vec3.atLowerCornerOf(worldPosition);
-			Vec3 teCenterVec = beVec.add(0.5, 0.5, 0.5);
-			Vec3 start = newConnection.starts.getFirst();
-			Vec3 startToBE = start.subtract(teCenterVec);
-			Vec3 endToStart = newConnection.starts.getSecond()
-				.subtract(start);
-			startToBE = transform.applyWithoutOffsetUncentered(startToBE)
-				.add(teCenterVec);
-			endToStart = transform.applyWithoutOffsetUncentered(endToStart)
-				.add(startToBE);
+            BlockPos diff =
+                    newConnection
+                            .bePositions
+                            .getSecond()
+                            .subtract(newConnection.bePositions.getFirst());
+            newConnection.bePositions.setSecond(
+                    BlockPos.containing(
+                            Vec3.atCenterOf(newConnection.bePositions.getFirst())
+                                    .add(
+                                            transform.applyWithoutOffsetUncentered(
+                                                    Vec3.atLowerCornerOf(diff)))));
 
-			newConnection.starts.setFirst(new TrackNodeLocation(startToBE).getLocation());
-			newConnection.starts.setSecond(new TrackNodeLocation(endToStart).getLocation());
+            Vec3 beVec = Vec3.atLowerCornerOf(worldPosition);
+            Vec3 teCenterVec = beVec.add(0.5, 0.5, 0.5);
+            Vec3 start = newConnection.starts.getFirst();
+            Vec3 startToBE = start.subtract(teCenterVec);
+            Vec3 endToStart = newConnection.starts.getSecond().subtract(start);
+            startToBE = transform.applyWithoutOffsetUncentered(startToBE).add(teCenterVec);
+            endToStart = transform.applyWithoutOffsetUncentered(endToStart).add(startToBE);
 
-			BlockPos newTarget = newConnection.getKey();
-			transformedConnections.put(newTarget, newConnection);
-		}
+            newConnection.starts.setFirst(new TrackNodeLocation(startToBE).getLocation());
+            newConnection.starts.setSecond(new TrackNodeLocation(endToStart).getLocation());
 
-		connections = transformedConnections;
-	}
+            BlockPos newTarget = newConnection.getKey();
+            transformedConnections.put(newTarget, newConnection);
+        }
 
-	@Override
-	public void invalidate() {
-		super.invalidate();
-		if (level.isClientSide)
-			removeFromCurveInteraction();
-	}
+        connections = transformedConnections;
+    }
 
-	@Override
-	public void remove() {
-		super.remove();
+    @Override
+    public void invalidate() {
+        super.invalidate();
+        if (level.isClientSide) removeFromCurveInteraction();
+    }
 
-		for (BezierConnection connection : connections.values())
-			manageFakeTracksAlong(connection, true);
+    @Override
+    public void remove() {
+        super.remove();
 
-		if (boundLocation != null && level instanceof ServerLevel) {
-			ServerLevel otherLevel = level.getServer()
-				.getLevel(boundLocation.getFirst());
-			if (otherLevel == null)
-				return;
-			if (AllTags.AllBlockTags.TRACKS.matches(otherLevel.getBlockState(boundLocation.getSecond())))
-				otherLevel.destroyBlock(boundLocation.getSecond(), false);
-		}
-	}
+        for (BezierConnection connection : connections.values())
+            manageFakeTracksAlong(connection, true);
 
-	private void registerToCurveInteraction() {
-		CatnipServices.PLATFORM.executeOnClientOnly(() -> this::registerToCurveInteractionUnsafe);
-	}
+        if (boundLocation != null && level instanceof ServerLevel) {
+            ServerLevel otherLevel = level.getServer().getLevel(boundLocation.getFirst());
+            if (otherLevel == null) return;
+            if (AllTags.AllBlockTags.TRACKS.matches(
+                    otherLevel.getBlockState(boundLocation.getSecond())))
+                otherLevel.destroyBlock(boundLocation.getSecond(), false);
+        }
+    }
 
-	private void removeFromCurveInteraction() {
-		CatnipServices.PLATFORM.executeOnClientOnly(() -> this::removeFromCurveInteractionUnsafe);
-	}
+    private void registerToCurveInteraction() {
+        CatnipServices.PLATFORM.executeOnClientOnly(() -> this::registerToCurveInteractionUnsafe);
+    }
 
-	@Override
-	@Nullable
-	public Double getRenderData() {
-		if (!isTilted())
-			return null;
-		return tilt.smoothingAngle.get();
-	}
+    private void removeFromCurveInteraction() {
+        CatnipServices.PLATFORM.executeOnClientOnly(() -> this::removeFromCurveInteractionUnsafe);
+    }
 
-	@Environment(EnvType.CLIENT)
-	private void registerToCurveInteractionUnsafe() {
-		TrackBlockOutline.TRACKS_WITH_TURNS.get(level)
-			.put(worldPosition, this);
-	}
+    @Override
+    @Nullable
+    public Double getRenderData() {
+        if (!isTilted()) return null;
+        return tilt.smoothingAngle.get();
+    }
 
-	@Environment(EnvType.CLIENT)
-	private void removeFromCurveInteractionUnsafe() {
-		TrackBlockOutline.TRACKS_WITH_TURNS.get(level)
-			.remove(worldPosition);
-	}
+    @Environment(EnvType.CLIENT)
+    private void registerToCurveInteractionUnsafe() {
+        TrackBlockOutline.TRACKS_WITH_TURNS.get(level).put(worldPosition, this);
+    }
 
-	public void manageFakeTracksAlong(BezierConnection bc, boolean remove) {
-		if (!bc.isPrimary()) bc = bc.secondary();
-		String source = bc.bePositions.getFirst().asLong() + ":" + bc.bePositions.getSecond().asLong();
-		for (var entry : TrackCollision.curve(bc).entrySet()) {
-			BlockPos pos = entry.getKey();
-			BlockState state = level.getBlockState(pos);
-			if (!remove && !AllBlocks.FAKE_TRACK.has(state) && state.canBeReplaced()
-				&& (state.getFluidState().isEmpty() || state.getFluidState().isSourceOfType(Fluids.WATER)))
-				level.setBlock(pos, ProperWaterloggedBlock.withWater(level, AllBlocks.FAKE_TRACK.getDefaultState(), pos), 3);
-			if (level.getBlockEntity(pos) instanceof FakeTrackBlockEntity be) {
-				be.setCollision(source, remove ? null : entry.getValue());
-				if (remove && be.collisionShape().isEmpty()) level.removeBlock(pos, false);
-				else be.keepAlive();
-			}
-		}
-		Map<Pair<Integer, Integer>, Double> yLevels = bc.rasterise();
+    @Environment(EnvType.CLIENT)
+    private void removeFromCurveInteractionUnsafe() {
+        TrackBlockOutline.TRACKS_WITH_TURNS.get(level).remove(worldPosition);
+    }
 
-		for (Entry<Pair<Integer, Integer>, Double> entry : yLevels.entrySet()) {
-			double yValue = entry.getValue();
-			int floor = Mth.floor(yValue);
-			BlockPos targetPos = new BlockPos(entry.getKey()
-				.getFirst(), floor,
-				entry.getKey()
-					.getSecond());
-			targetPos = targetPos.offset(bc.bePositions.getFirst())
-				.above(1);
+    public void manageFakeTracksAlong(BezierConnection bc, boolean remove) {
+        if (!bc.isPrimary()) bc = bc.secondary();
+        String source =
+                bc.bePositions.getFirst().asLong() + ":" + bc.bePositions.getSecond().asLong();
+        for (var entry : TrackCollision.curve(bc).entrySet()) {
+            BlockPos pos = entry.getKey();
+            BlockState state = level.getBlockState(pos);
+            if (!remove
+                    && !AllBlocks.FAKE_TRACK.has(state)
+                    && state.canBeReplaced()
+                    && (state.getFluidState().isEmpty()
+                            || state.getFluidState().isSourceOfType(Fluids.WATER)))
+                level.setBlock(
+                        pos,
+                        ProperWaterloggedBlock.withWater(
+                                level, AllBlocks.FAKE_TRACK.getDefaultState(), pos),
+                        3);
+            if (level.getBlockEntity(pos) instanceof FakeTrackBlockEntity be) {
+                be.setCollision(source, remove ? null : entry.getValue());
+                if (remove && be.collisionShape().isEmpty()) level.removeBlock(pos, false);
+                else be.keepAlive();
+            }
+        }
+        Map<Pair<Integer, Integer>, Double> yLevels = bc.rasterise();
 
-			BlockState stateAtPos = level.getBlockState(targetPos);
-			boolean present = AllBlocks.FAKE_TRACK.has(stateAtPos);
+        for (Entry<Pair<Integer, Integer>, Double> entry : yLevels.entrySet()) {
+            double yValue = entry.getValue();
+            int floor = Mth.floor(yValue);
+            BlockPos targetPos =
+                    new BlockPos(entry.getKey().getFirst(), floor, entry.getKey().getSecond());
+            targetPos = targetPos.offset(bc.bePositions.getFirst()).above(1);
 
-			if (remove) {
-				if (present && level.getBlockEntity(targetPos) instanceof FakeTrackBlockEntity be && be.collisionShape().isEmpty())
-					level.removeBlock(targetPos, false);
-				continue;
-			}
+            BlockState stateAtPos = level.getBlockState(targetPos);
+            boolean present = AllBlocks.FAKE_TRACK.has(stateAtPos);
 
-			FluidState fluidState = stateAtPos.getFluidState();
-			if (!fluidState.isEmpty() && !fluidState.isSourceOfType(Fluids.WATER))
-				continue;
+            if (remove) {
+                if (present
+                        && level.getBlockEntity(targetPos) instanceof FakeTrackBlockEntity be
+                        && be.collisionShape().isEmpty()) level.removeBlock(targetPos, false);
+                continue;
+            }
 
-			if (!present && stateAtPos.canBeReplaced())
-				level.setBlock(targetPos,
-					ProperWaterloggedBlock.withWater(level, AllBlocks.FAKE_TRACK.getDefaultState(), targetPos), 3);
-			FakeTrackBlock.keepAlive(level, targetPos);
-		}
-	}
+            FluidState fluidState = stateAtPos.getFluidState();
+            if (!fluidState.isEmpty() && !fluidState.isSourceOfType(Fluids.WATER)) continue;
 
+            if (!present && stateAtPos.canBeReplaced())
+                level.setBlock(
+                        targetPos,
+                        ProperWaterloggedBlock.withWater(
+                                level, AllBlocks.FAKE_TRACK.getDefaultState(), targetPos),
+                        3);
+            FakeTrackBlock.keepAlive(level, targetPos);
+        }
+    }
 }

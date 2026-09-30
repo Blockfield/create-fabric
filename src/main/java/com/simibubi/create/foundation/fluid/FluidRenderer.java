@@ -2,98 +2,200 @@ package com.simibubi.create.foundation.fluid;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
+import com.simibubi.create.infrastructure.fabric.transfer.fluid.FluidStack;
 
 import dev.engine_room.flywheel.lib.transform.TransformStack;
-import net.createmod.catnip.math.AngleHelper;
-import net.createmod.catnip.render.FluidRenderHelper;
-import net.createmod.catnip.platform.FabricCatnipServices;
-import net.minecraft.core.component.DataComponentPatch;
-import net.minecraft.world.level.material.Fluid;
-import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.texture.TextureAtlasSprite;
-import net.minecraft.core.Direction;
-import net.minecraft.util.Mth;
 
+import net.createmod.catnip.math.AngleHelper;
+import net.createmod.catnip.platform.FabricCatnipServices;
+import net.createmod.catnip.render.FluidRenderHelper;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.fabricmc.fabric.api.transfer.v1.client.fluid.FluidVariantRendering;
 import net.fabricmc.fabric.api.transfer.v1.fluid.FluidVariant;
 import net.fabricmc.fabric.api.transfer.v1.fluid.FluidVariantAttributes;
-
-import com.simibubi.create.infrastructure.fabric.transfer.fluid.FluidStack;
+import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.client.renderer.texture.TextureAtlasSprite;
+import net.minecraft.core.Direction;
+import net.minecraft.core.component.DataComponentPatch;
+import net.minecraft.util.Mth;
+import net.minecraft.world.level.material.Fluid;
 
 @Environment(EnvType.CLIENT)
 public class FluidRenderer {
 
-	public static void renderFluidStream(FluidStack fluidStack, Direction direction, float radius, float progress,
-		boolean inbound, MultiBufferSource buffer, PoseStack ms, int light) {
-		renderFluidStream(fluidStack, direction, radius, progress, inbound, FluidRenderHelper.getFluidBuilder(buffer), ms, light);
-	}
+    public static void renderFluidStream(
+            FluidStack fluidStack,
+            Direction direction,
+            float radius,
+            float progress,
+            boolean inbound,
+            MultiBufferSource buffer,
+            PoseStack ms,
+            int light) {
+        renderFluidStream(
+                fluidStack,
+                direction,
+                radius,
+                progress,
+                inbound,
+                FluidRenderHelper.getFluidBuilder(buffer),
+                ms,
+                light);
+    }
 
-	public static void renderFluidStream(FluidStack fluidStack, Direction direction, float radius, float progress,
-		boolean inbound, VertexConsumer builder, PoseStack ms, int light) {
-		FluidVariant fluidVariant = fluidStack.getVariant();
-		TextureAtlasSprite[] sprites = FluidVariantRendering.getSprites(fluidVariant);
-		if (sprites == null) {
-			return;
-		}
-		TextureAtlasSprite flowTexture = sprites[1];
-		TextureAtlasSprite stillTexture = sprites[0];
+    public static void renderFluidStream(
+            FluidStack fluidStack,
+            Direction direction,
+            float radius,
+            float progress,
+            boolean inbound,
+            VertexConsumer builder,
+            PoseStack ms,
+            int light) {
+        FluidVariant fluidVariant = fluidStack.getVariant();
+        TextureAtlasSprite[] sprites = FluidVariantRendering.getSprites(fluidVariant);
+        if (sprites == null) {
+            return;
+        }
+        TextureAtlasSprite flowTexture = sprites[1];
+        TextureAtlasSprite stillTexture = sprites[0];
 
-		int color = FluidVariantRendering.getColor(fluidVariant);
-		int blockLightIn = (light >> 4) & 0xF;
-		int luminosity = Math.max(blockLightIn, FluidVariantAttributes.getLuminance(fluidVariant));
-		light = (light & 0xF00000) | luminosity << 4;
+        int color = FluidVariantRendering.getColor(fluidVariant);
+        int blockLightIn = (light >> 4) & 0xF;
+        int luminosity = Math.max(blockLightIn, FluidVariantAttributes.getLuminance(fluidVariant));
+        light = (light & 0xF00000) | luminosity << 4;
 
-		if (inbound)
-			direction = direction.getOpposite();
+        if (inbound) direction = direction.getOpposite();
 
-		var msr = TransformStack.of(ms);
-		ms.pushPose();
-		msr.center()
-			.rotateYDegrees(AngleHelper.horizontalAngle(direction))
-			.rotateXDegrees(direction == Direction.UP ? 180 : direction == Direction.DOWN ? 0 : 270)
-			.uncenter();
-		ms.translate(.5, 0, .5);
+        var msr = TransformStack.of(ms);
+        ms.pushPose();
+        msr.center()
+                .rotateYDegrees(AngleHelper.horizontalAngle(direction))
+                .rotateXDegrees(
+                        direction == Direction.UP ? 180 : direction == Direction.DOWN ? 0 : 270)
+                .uncenter();
+        ms.translate(.5, 0, .5);
 
-		float h = radius;
-		float hMin = -radius;
-		float hMax = radius;
-		float y = inbound ? 1 : .5f;
-		float yMin = y - Mth.clamp(progress * .5f, 0, 1);
-		float yMax = y;
+        float h = radius;
+        float hMin = -radius;
+        float hMax = radius;
+        float y = inbound ? 1 : .5f;
+        float yMin = y - Mth.clamp(progress * .5f, 0, 1);
+        float yMax = y;
 
-		for (int i = 0; i < 4; i++) {
-			ms.pushPose();
-			renderFlowingTiledFace(Direction.SOUTH, hMin, yMin, hMax, yMax, h, builder, ms, light, color, flowTexture);
-			ms.popPose();
-			msr.rotateYDegrees(90);
-		}
+        for (int i = 0; i < 4; i++) {
+            ms.pushPose();
+            renderFlowingTiledFace(
+                    Direction.SOUTH,
+                    hMin,
+                    yMin,
+                    hMax,
+                    yMax,
+                    h,
+                    builder,
+                    ms,
+                    light,
+                    color,
+                    flowTexture);
+            ms.popPose();
+            msr.rotateYDegrees(90);
+        }
 
-		if (progress != 1)
-			FluidRenderHelper.renderStillTiledFace(Direction.DOWN, hMin, hMin, hMax, hMax, yMin, builder, ms, light, color, stillTexture);
+        if (progress != 1)
+            FluidRenderHelper.renderStillTiledFace(
+                    Direction.DOWN,
+                    hMin,
+                    hMin,
+                    hMax,
+                    hMax,
+                    yMin,
+                    builder,
+                    ms,
+                    light,
+                    color,
+                    stillTexture);
 
-		ms.popPose();
-	}
+        ms.popPose();
+    }
 
-	public static void renderFlowingTiledFace(Direction dir, float left, float down, float right, float up,
-		float depth, VertexConsumer builder, PoseStack ms, int light, int color, TextureAtlasSprite texture) {
-		FluidRenderHelper.renderTiledFace(dir, left, down, right, up, depth, builder, ms, light, color, texture, 0.5f);
-	}
+    public static void renderFlowingTiledFace(
+            Direction dir,
+            float left,
+            float down,
+            float right,
+            float up,
+            float depth,
+            VertexConsumer builder,
+            PoseStack ms,
+            int light,
+            int color,
+            TextureAtlasSprite texture) {
+        FluidRenderHelper.renderTiledFace(
+                dir, left, down, right, up, depth, builder, ms, light, color, texture, 0.5f);
+    }
 
+    /**
+     * Старая сигнатура BasicFluidRenderer: девять вызовов по коду, на Fabric рендер идёт через
+     * Catnip по FluidVariant.
+     */
+    public static void renderFluidBox(
+            Fluid fluid,
+            long amount,
+            float xMin,
+            float yMin,
+            float zMin,
+            float xMax,
+            float yMax,
+            float zMax,
+            MultiBufferSource buffer,
+            PoseStack ms,
+            int light,
+            boolean renderBottom,
+            boolean renderTop,
+            DataComponentPatch components) {
+        FabricCatnipServices.FLUID_RENDERER.renderFluidBox(
+                FluidVariant.of(fluid, components),
+                xMin,
+                yMin,
+                zMin,
+                xMax,
+                yMax,
+                zMax,
+                buffer,
+                ms,
+                light,
+                renderBottom,
+                renderTop);
+    }
 
-	/** Старая сигнатура BasicFluidRenderer: девять вызовов по коду, на Fabric рендер идёт через Catnip по FluidVariant. */
-	public static void renderFluidBox(Fluid fluid, long amount, float xMin, float yMin, float zMin, float xMax, float yMax,
-		float zMax, MultiBufferSource buffer, PoseStack ms, int light, boolean renderBottom, boolean renderTop,
-		DataComponentPatch components) {
-		FabricCatnipServices.FLUID_RENDERER.renderFluidBox(FluidVariant.of(fluid, components), xMin, yMin, zMin, xMax, yMax,
-			zMax, buffer, ms, light, renderBottom, renderTop);
-	}
-
-	public static void renderFluidBox(Fluid fluid, long amount, float xMin, float yMin, float zMin, float xMax, float yMax,
-		float zMax, VertexConsumer builder, PoseStack ms, int light, boolean renderBottom, boolean renderTop,
-		DataComponentPatch components) {
-		FabricCatnipServices.FLUID_RENDERER.renderFluidBox(FluidVariant.of(fluid, components), xMin, yMin, zMin, xMax, yMax,
-			zMax, builder, ms, light, renderBottom, renderTop);
-	}
+    public static void renderFluidBox(
+            Fluid fluid,
+            long amount,
+            float xMin,
+            float yMin,
+            float zMin,
+            float xMax,
+            float yMax,
+            float zMax,
+            VertexConsumer builder,
+            PoseStack ms,
+            int light,
+            boolean renderBottom,
+            boolean renderTop,
+            DataComponentPatch components) {
+        FabricCatnipServices.FLUID_RENDERER.renderFluidBox(
+                FluidVariant.of(fluid, components),
+                xMin,
+                yMin,
+                zMin,
+                xMax,
+                yMax,
+                zMax,
+                builder,
+                ms,
+                light,
+                renderBottom,
+                renderTop);
+    }
 }

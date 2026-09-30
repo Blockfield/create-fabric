@@ -19,36 +19,43 @@ import net.minecraft.world.entity.HumanoidArm;
 
 public class NetheriteBacktankFirstPersonRenderer {
 
-	private static final ResourceLocation BACKTANK_ARMOR_LOCATION =
-		Create.asResource("textures/models/armor/netherite_diving_arm.png");
+    private static final ResourceLocation BACKTANK_ARMOR_LOCATION =
+            Create.asResource("textures/models/armor/netherite_diving_arm.png");
 
-	private static boolean rendererActive = false;
+    private static boolean rendererActive = false;
 
-	public static void clientTick() {
-		Minecraft mc = Minecraft.getInstance();
-		rendererActive =
-			mc.player != null && AllItems.NETHERITE_BACKTANK.isIn(mc.player.getItemBySlot(EquipmentSlot.CHEST));
-	}
+    public static void clientTick() {
+        Minecraft mc = Minecraft.getInstance();
+        rendererActive =
+                mc.player != null
+                        && AllItems.NETHERITE_BACKTANK.isIn(
+                                mc.player.getItemBySlot(EquipmentSlot.CHEST));
+    }
 
-	public static boolean onRenderPlayerHand(PoseStack poseStack, MultiBufferSource buffer, int packedLight, AbstractClientPlayer player, HumanoidArm arm) {
-		if (!rendererActive)
-			return false;
+    public static boolean onRenderPlayerHand(
+            PoseStack poseStack,
+            MultiBufferSource buffer,
+            int packedLight,
+            AbstractClientPlayer player,
+            HumanoidArm arm) {
+        if (!rendererActive) return false;
 
-		Minecraft mc = Minecraft.getInstance();
-		if (!(mc.getEntityRenderDispatcher()
-			.getRenderer(player) instanceof PlayerRenderer pr))
-			return false;
+        Minecraft mc = Minecraft.getInstance();
+        if (!(mc.getEntityRenderDispatcher().getRenderer(player) instanceof PlayerRenderer pr))
+            return false;
 
-		PlayerModel<AbstractClientPlayer> model = pr.getModel();
-		model.attackTime = 0.0F;
-		model.crouching = false;
-		model.swimAmount = 0.0F;
-		model.setupAnim(player, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F);
-		ModelPart armPart = arm == HumanoidArm.LEFT ? model.leftSleeve : model.rightSleeve;
-		armPart.xRot = 0.0F;
-		armPart.render(poseStack, buffer.getBuffer(RenderType.entitySolid(BACKTANK_ARMOR_LOCATION)),
-			LightTexture.FULL_BRIGHT, OverlayTexture.NO_OVERLAY);
-		return true;
-	}
-
+        PlayerModel<AbstractClientPlayer> model = pr.getModel();
+        model.attackTime = 0.0F;
+        model.crouching = false;
+        model.swimAmount = 0.0F;
+        model.setupAnim(player, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F);
+        ModelPart armPart = arm == HumanoidArm.LEFT ? model.leftSleeve : model.rightSleeve;
+        armPart.xRot = 0.0F;
+        armPart.render(
+                poseStack,
+                buffer.getBuffer(RenderType.entitySolid(BACKTANK_ARMOR_LOCATION)),
+                LightTexture.FULL_BRIGHT,
+                OverlayTexture.NO_OVERLAY);
+        return true;
+    }
 }

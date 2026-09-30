@@ -1,8 +1,5 @@
 package com.simibubi.create.content.kinetics.press;
 
-import java.util.List;
-import java.util.Optional;
-
 import com.simibubi.create.AllRecipeTypes;
 import com.simibubi.create.AllTags;
 import com.simibubi.create.content.kinetics.belt.transport.TransportedItemStack;
@@ -38,215 +35,220 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
-import com.simibubi.create.infrastructure.fabric.transfer.item.ItemStackHandler;
-import io.github.fabricators_of_create.porting_lib.transfer.item.ItemStackHandlerContainer;
+import java.util.List;
+import java.util.Optional;
 
-public class MechanicalPressBlockEntity extends BasinOperatingBlockEntity implements PressingBehaviourSpecifics {
+public class MechanicalPressBlockEntity extends BasinOperatingBlockEntity
+        implements PressingBehaviourSpecifics {
 
-	private static final Object compressingRecipesKey = new Object();
+    private static final Object compressingRecipesKey = new Object();
 
-	public PressingBehaviour pressingBehaviour;
-	private int tracksCreated;
+    public PressingBehaviour pressingBehaviour;
+    private int tracksCreated;
 
-	public MechanicalPressBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state) {
-		super(type, pos, state);
-	}
+    public MechanicalPressBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state) {
+        super(type, pos, state);
+    }
 
-	@Override
-	protected AABB createRenderBoundingBox() {
-		return new AABB(worldPosition).expandTowards(0, -1.5, 0)
-			.expandTowards(0, 1, 0);
-	}
+    @Override
+    protected AABB createRenderBoundingBox() {
+        return new AABB(worldPosition).expandTowards(0, -1.5, 0).expandTowards(0, 1, 0);
+    }
 
-	@Override
-	public void addBehaviours(List<BlockEntityBehaviour> behaviours) {
-		super.addBehaviours(behaviours);
-		pressingBehaviour = new PressingBehaviour(this);
-		behaviours.add(pressingBehaviour);
+    @Override
+    public void addBehaviours(List<BlockEntityBehaviour> behaviours) {
+        super.addBehaviours(behaviours);
+        pressingBehaviour = new PressingBehaviour(this);
+        behaviours.add(pressingBehaviour);
 
-		registerAwardables(behaviours, AllAdvancements.PRESS, AllAdvancements.COMPACTING,
-			AllAdvancements.TRACK_CRAFTING);
-	}
+        registerAwardables(
+                behaviours,
+                AllAdvancements.PRESS,
+                AllAdvancements.COMPACTING,
+                AllAdvancements.TRACK_CRAFTING);
+    }
 
-	public void onItemPressed(ItemStack result) {
-		award(AllAdvancements.PRESS);
-		if (AllTags.AllBlockTags.TRACKS.matches(result))
-			tracksCreated += result.getCount();
-		if (tracksCreated >= 1000) {
-			award(AllAdvancements.TRACK_CRAFTING);
-			tracksCreated = 0;
-		}
-	}
+    public void onItemPressed(ItemStack result) {
+        award(AllAdvancements.PRESS);
+        if (AllTags.AllBlockTags.TRACKS.matches(result)) tracksCreated += result.getCount();
+        if (tracksCreated >= 1000) {
+            award(AllAdvancements.TRACK_CRAFTING);
+            tracksCreated = 0;
+        }
+    }
 
-	public PressingBehaviour getPressingBehaviour() {
-		return pressingBehaviour;
-	}
+    public PressingBehaviour getPressingBehaviour() {
+        return pressingBehaviour;
+    }
 
-	@Override
-	public boolean tryProcessInBasin(boolean simulate) {
-		applyBasinRecipe();
+    @Override
+    public boolean tryProcessInBasin(boolean simulate) {
+        applyBasinRecipe();
 
-		Optional<BasinBlockEntity> basin = getBasin();
-		if (basin.isPresent()) {
-			SmartInventory inputs = basin.get()
-				.getInputInventory();
-			for (int slot = 0; slot < inputs.getSlotCount(); slot++) {
-				ItemStack stackInSlot = inputs.getStackInSlot(slot);
-				if (stackInSlot.isEmpty())
-					continue;
-				pressingBehaviour.particleItems.add(stackInSlot);
-			}
-		}
+        Optional<BasinBlockEntity> basin = getBasin();
+        if (basin.isPresent()) {
+            SmartInventory inputs = basin.get().getInputInventory();
+            for (int slot = 0; slot < inputs.getSlotCount(); slot++) {
+                ItemStack stackInSlot = inputs.getStackInSlot(slot);
+                if (stackInSlot.isEmpty()) continue;
+                pressingBehaviour.particleItems.add(stackInSlot);
+            }
+        }
 
-		return true;
-	}
+        return true;
+    }
 
-	@Override
-	protected void write(CompoundTag compound, HolderLookup.Provider registries, boolean clientPacket) {
-		super.write(compound, registries, clientPacket);
-		if (getBehaviour(AdvancementBehaviour.TYPE).isOwnerPresent())
-			compound.putInt("TracksCreated", tracksCreated);
-	}
+    @Override
+    protected void write(
+            CompoundTag compound, HolderLookup.Provider registries, boolean clientPacket) {
+        super.write(compound, registries, clientPacket);
+        if (getBehaviour(AdvancementBehaviour.TYPE).isOwnerPresent())
+            compound.putInt("TracksCreated", tracksCreated);
+    }
 
-	@Override
-	protected void read(CompoundTag compound, HolderLookup.Provider registries, boolean clientPacket) {
-		super.read(compound, registries, clientPacket);
-		tracksCreated = compound.getInt("TracksCreated");
-	}
+    @Override
+    protected void read(
+            CompoundTag compound, HolderLookup.Provider registries, boolean clientPacket) {
+        super.read(compound, registries, clientPacket);
+        tracksCreated = compound.getInt("TracksCreated");
+    }
 
-	@Override
-	public boolean tryProcessInWorld(ItemEntity itemEntity, boolean simulate) {
-		ItemStack item = itemEntity.getItem();
-		Optional<RecipeHolder<PressingRecipe>> recipe = getRecipe(item);
-		if (!recipe.isPresent())
-			return false;
-		if (simulate)
-			return true;
+    @Override
+    public boolean tryProcessInWorld(ItemEntity itemEntity, boolean simulate) {
+        ItemStack item = itemEntity.getItem();
+        Optional<RecipeHolder<PressingRecipe>> recipe = getRecipe(item);
+        if (!recipe.isPresent()) return false;
+        if (simulate) return true;
 
-		ItemStack itemCreated = ItemStack.EMPTY;
-		pressingBehaviour.particleItems.add(item);
-		if (canProcessInBulk() || item.getCount() == 1) {
-			RecipeApplier.applyRecipeOn(itemEntity, recipe.get().value());
-			itemCreated = itemEntity.getItem()
-				.copy();
-		} else {
-			for (ItemStack result : RecipeApplier.applyRecipeOn(level, item.copyWithCount(1),
-				recipe.get())) {
-				if (itemCreated.isEmpty())
-					itemCreated = result.copy();
-				ItemEntity created =
-					new ItemEntity(level, itemEntity.getX(), itemEntity.getY(), itemEntity.getZ(), result);
-				created.setDefaultPickUpDelay();
-				created.setDeltaMovement(VecHelper.offsetRandomly(Vec3.ZERO, level.random, .05f));
-				level.addFreshEntity(created);
-			}
-			item.shrink(1);
-		}
+        ItemStack itemCreated = ItemStack.EMPTY;
+        pressingBehaviour.particleItems.add(item);
+        if (canProcessInBulk() || item.getCount() == 1) {
+            RecipeApplier.applyRecipeOn(itemEntity, recipe.get().value());
+            itemCreated = itemEntity.getItem().copy();
+        } else {
+            for (ItemStack result :
+                    RecipeApplier.applyRecipeOn(level, item.copyWithCount(1), recipe.get())) {
+                if (itemCreated.isEmpty()) itemCreated = result.copy();
+                ItemEntity created =
+                        new ItemEntity(
+                                level,
+                                itemEntity.getX(),
+                                itemEntity.getY(),
+                                itemEntity.getZ(),
+                                result);
+                created.setDefaultPickUpDelay();
+                created.setDeltaMovement(VecHelper.offsetRandomly(Vec3.ZERO, level.random, .05f));
+                level.addFreshEntity(created);
+            }
+            item.shrink(1);
+        }
 
-		if (!itemCreated.isEmpty())
-			onItemPressed(itemCreated);
-		return true;
-	}
+        if (!itemCreated.isEmpty()) onItemPressed(itemCreated);
+        return true;
+    }
 
-	@Override
-	public boolean tryProcessOnBelt(TransportedItemStack input, List<ItemStack> outputList, boolean simulate) {
-		Optional<RecipeHolder<PressingRecipe>> recipe = getRecipe(input.stack);
-		if (!recipe.isPresent())
-			return false;
-		if (simulate)
-			return true;
-		pressingBehaviour.particleItems.add(input.stack);
-		List<ItemStack> outputs = RecipeApplier.applyRecipeOn(level,
-			canProcessInBulk() ? input.stack : input.stack.copyWithCount(1), recipe.get());
+    @Override
+    public boolean tryProcessOnBelt(
+            TransportedItemStack input, List<ItemStack> outputList, boolean simulate) {
+        Optional<RecipeHolder<PressingRecipe>> recipe = getRecipe(input.stack);
+        if (!recipe.isPresent()) return false;
+        if (simulate) return true;
+        pressingBehaviour.particleItems.add(input.stack);
+        List<ItemStack> outputs =
+                RecipeApplier.applyRecipeOn(
+                        level,
+                        canProcessInBulk() ? input.stack : input.stack.copyWithCount(1),
+                        recipe.get());
 
-		for (ItemStack created : outputs) {
-			if (!created.isEmpty()) {
-				onItemPressed(created);
-				break;
-			}
-		}
+        for (ItemStack created : outputs) {
+            if (!created.isEmpty()) {
+                onItemPressed(created);
+                break;
+            }
+        }
 
-		outputList.addAll(outputs);
-		return true;
-	}
+        outputList.addAll(outputs);
+        return true;
+    }
 
-	@Override
-	public void onPressingCompleted() {
-		if (pressingBehaviour.onBasin() && matchBasinRecipe(currentRecipe)
-			&& getBasin().filter(BasinBlockEntity::canContinueProcessing)
-				.isPresent())
-			startProcessingBasin();
-		else
-			basinChecker.scheduleUpdate();
-	}
+    @Override
+    public void onPressingCompleted() {
+        if (pressingBehaviour.onBasin()
+                && matchBasinRecipe(currentRecipe)
+                && getBasin().filter(BasinBlockEntity::canContinueProcessing).isPresent())
+            startProcessingBasin();
+        else basinChecker.scheduleUpdate();
+    }
 
-	public Optional<RecipeHolder<PressingRecipe>> getRecipe(ItemStack item) {
-		Optional<RecipeHolder<PressingRecipe>> assemblyRecipe =
-			SequencedAssemblyRecipe.getRecipe(level, item, AllRecipeTypes.PRESSING.getType(), PressingRecipe.class);
-		if (assemblyRecipe.isPresent())
-			return assemblyRecipe;
+    public Optional<RecipeHolder<PressingRecipe>> getRecipe(ItemStack item) {
+        Optional<RecipeHolder<PressingRecipe>> assemblyRecipe =
+                SequencedAssemblyRecipe.getRecipe(
+                        level, item, AllRecipeTypes.PRESSING.getType(), PressingRecipe.class);
+        if (assemblyRecipe.isPresent()) return assemblyRecipe;
 
-		return AllRecipeTypes.PRESSING.find(new SingleRecipeInput(item), level);
-	}
+        return AllRecipeTypes.PRESSING.find(new SingleRecipeInput(item), level);
+    }
 
-	public static boolean canCompress(Recipe<?> recipe) {
-		if (!(recipe instanceof CraftingRecipe) || !AllConfigs.server().recipes.allowShapedSquareInPress.get())
-			return false;
-		NonNullList<Ingredient> ingredients = recipe.getIngredients();
-		return (ingredients.size() == 4 || ingredients.size() == 9) && ItemHelper.matchAllIngredients(ingredients);
-	}
+    public static boolean canCompress(Recipe<?> recipe) {
+        if (!(recipe instanceof CraftingRecipe)
+                || !AllConfigs.server().recipes.allowShapedSquareInPress.get()) return false;
+        NonNullList<Ingredient> ingredients = recipe.getIngredients();
+        return (ingredients.size() == 4 || ingredients.size() == 9)
+                && ItemHelper.matchAllIngredients(ingredients);
+    }
 
-	@Override
-	protected boolean matchStaticFilters(RecipeHolder<? extends Recipe<?>> recipe) {
-		return (recipe.value() instanceof CraftingRecipe && !(recipe.value() instanceof MechanicalCraftingRecipe) && canCompress(recipe.value())
-				&& !AllRecipeTypes.shouldIgnoreInAutomation(recipe))
-				|| recipe.value().getType() == AllRecipeTypes.COMPACTING.getType();
-	}
+    @Override
+    protected boolean matchStaticFilters(RecipeHolder<? extends Recipe<?>> recipe) {
+        return (recipe.value() instanceof CraftingRecipe
+                        && !(recipe.value() instanceof MechanicalCraftingRecipe)
+                        && canCompress(recipe.value())
+                        && !AllRecipeTypes.shouldIgnoreInAutomation(recipe))
+                || recipe.value().getType() == AllRecipeTypes.COMPACTING.getType();
+    }
 
-	@Override
-	public float getKineticSpeed() {
-		return getSpeed();
-	}
+    @Override
+    public float getKineticSpeed() {
+        return getSpeed();
+    }
 
-	@Override
-	public boolean canProcessInBulk() {
-		return AllConfigs.server().recipes.bulkPressing.get();
-	}
+    @Override
+    public boolean canProcessInBulk() {
+        return AllConfigs.server().recipes.bulkPressing.get();
+    }
 
-	@Override
-	protected Object getRecipeCacheKey() {
-		return compressingRecipesKey;
-	}
+    @Override
+    protected Object getRecipeCacheKey() {
+        return compressingRecipesKey;
+    }
 
-	@Override
-	public int getParticleAmount() {
-		return 15;
-	}
+    @Override
+    public int getParticleAmount() {
+        return 15;
+    }
 
-	@Override
-	public void startProcessingBasin() {
-		if (pressingBehaviour.running && pressingBehaviour.runningTicks <= PressingBehaviour.CYCLE / 2)
-			return;
-		super.startProcessingBasin();
-		pressingBehaviour.start(Mode.BASIN);
-	}
+    @Override
+    public void startProcessingBasin() {
+        if (pressingBehaviour.running
+                && pressingBehaviour.runningTicks <= PressingBehaviour.CYCLE / 2) return;
+        super.startProcessingBasin();
+        pressingBehaviour.start(Mode.BASIN);
+    }
 
-	@Override
-	protected void onBasinRemoved() {
-		pressingBehaviour.particleItems.clear();
-		pressingBehaviour.running = false;
-		pressingBehaviour.runningTicks = 0;
-		sendData();
-	}
+    @Override
+    protected void onBasinRemoved() {
+        pressingBehaviour.particleItems.clear();
+        pressingBehaviour.running = false;
+        pressingBehaviour.runningTicks = 0;
+        sendData();
+    }
 
-	@Override
-	protected boolean isRunning() {
-		return pressingBehaviour.running;
-	}
+    @Override
+    protected boolean isRunning() {
+        return pressingBehaviour.running;
+    }
 
-	@Override
-	protected Optional<CreateAdvancement> getProcessedRecipeTrigger() {
-		return Optional.of(AllAdvancements.COMPACTING);
-	}
-
+    @Override
+    protected Optional<CreateAdvancement> getProcessedRecipeTrigger() {
+        return Optional.of(AllAdvancements.COMPACTING);
+    }
 }

@@ -56,3 +56,6 @@ local.properties
 .gitmodules
 Ponder
 Ponder/
+
+.cache/quality/
+__pycache__/

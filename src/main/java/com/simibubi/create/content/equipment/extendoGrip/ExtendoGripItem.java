@@ -1,9 +1,5 @@
 package com.simibubi.create.content.equipment.extendoGrip;
 
-import java.util.function.Supplier;
-
-import org.jetbrains.annotations.Nullable;
-
 import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableMultimap;
 import com.google.common.collect.Multimap;
@@ -13,8 +9,17 @@ import com.simibubi.create.content.equipment.armor.BacktankUtil;
 import com.simibubi.create.foundation.advancement.AllAdvancements;
 import com.simibubi.create.infrastructure.config.AllConfigs;
 
+import io.github.fabricators_of_create.porting_lib.entity.events.living.LivingAttackEvent;
+import io.github.fabricators_of_create.porting_lib.entity.events.living.LivingKnockBackEvent;
+import io.github.fabricators_of_create.porting_lib.entity.events.player.AttackEntityEvent;
+import io.github.fabricators_of_create.porting_lib.entity.events.player.PlayerEvents;
+import io.github.fabricators_of_create.porting_lib.entity.events.player.PlayerInteractEvent;
+import io.github.fabricators_of_create.porting_lib.entity.events.tick.EntityTickEvent;
+
 import net.createmod.catnip.animation.AnimationTickHolder;
 import net.createmod.catnip.platform.CatnipServices;
+import net.fabricmc.api.EnvType;
+import net.fabricmc.api.Environment;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
@@ -42,253 +47,250 @@ import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.HitResult.Type;
 import net.minecraft.world.phys.Vec3;
 
-import net.fabricmc.api.EnvType;
-import net.fabricmc.api.Environment;
+import org.jetbrains.annotations.Nullable;
 
-import io.github.fabricators_of_create.porting_lib.entity.events.living.LivingAttackEvent;
-import io.github.fabricators_of_create.porting_lib.entity.events.living.LivingKnockBackEvent;
-import io.github.fabricators_of_create.porting_lib.entity.events.player.AttackEntityEvent;
-import io.github.fabricators_of_create.porting_lib.entity.events.player.PlayerEvents;
-import io.github.fabricators_of_create.porting_lib.entity.events.player.PlayerInteractEvent;
-import io.github.fabricators_of_create.porting_lib.entity.events.tick.EntityTickEvent;
+import java.util.function.Supplier;
 
 public class ExtendoGripItem extends Item {
-	public static final int MAX_DAMAGE = 200;
+    public static final int MAX_DAMAGE = 200;
 
-	public static final AttributeModifier singleRangeAttributeModifier =
-		new AttributeModifier(Create.asResource("single_range_attribute_modifier"), 3,
-			AttributeModifier.Operation.ADD_VALUE);
-	public static final AttributeModifier doubleRangeAttributeModifier =
-		new AttributeModifier(Create.asResource("double_range_attribute_modifier"), 5,
-			AttributeModifier.Operation.ADD_VALUE);
+    public static final AttributeModifier singleRangeAttributeModifier =
+            new AttributeModifier(
+                    Create.asResource("single_range_attribute_modifier"),
+                    3,
+                    AttributeModifier.Operation.ADD_VALUE);
+    public static final AttributeModifier doubleRangeAttributeModifier =
+            new AttributeModifier(
+                    Create.asResource("double_range_attribute_modifier"),
+                    5,
+                    AttributeModifier.Operation.ADD_VALUE);
 
-	private static final Supplier<Multimap<Holder<Attribute>, AttributeModifier>> rangeModifier = Suppliers.memoize(() ->
-		// Holding an ExtendoGrip
-		ImmutableMultimap.of(Attributes.BLOCK_INTERACTION_RANGE, singleRangeAttributeModifier));
-	private static final Supplier<Multimap<Holder<Attribute>, AttributeModifier>> doubleRangeModifier = Suppliers.memoize(() ->
-		// Holding two ExtendoGrips o.O
-		ImmutableMultimap.of(Attributes.BLOCK_INTERACTION_RANGE, doubleRangeAttributeModifier));
+    private static final Supplier<Multimap<Holder<Attribute>, AttributeModifier>> rangeModifier =
+            Suppliers.memoize(
+                    () ->
+                            // Holding an ExtendoGrip
+                            ImmutableMultimap.of(
+                                    Attributes.BLOCK_INTERACTION_RANGE,
+                                    singleRangeAttributeModifier));
+    private static final Supplier<Multimap<Holder<Attribute>, AttributeModifier>>
+            doubleRangeModifier =
+                    Suppliers.memoize(
+                            () ->
+                                    // Holding two ExtendoGrips o.O
+                                    ImmutableMultimap.of(
+                                            Attributes.BLOCK_INTERACTION_RANGE,
+                                            doubleRangeAttributeModifier));
 
-	private static DamageSource lastActiveDamageSource;
+    private static DamageSource lastActiveDamageSource;
 
-	public ExtendoGripItem(Properties properties) {
-		super(properties.durability(MAX_DAMAGE));
-	}
+    public ExtendoGripItem(Properties properties) {
+        super(properties.durability(MAX_DAMAGE));
+    }
 
-	public static final String EXTENDO_MARKER = "createExtendo";
-	public static final String DUAL_EXTENDO_MARKER = "createDualExtendo";
+    public static final String EXTENDO_MARKER = "createExtendo";
+    public static final String DUAL_EXTENDO_MARKER = "createDualExtendo";
 
-	public static void holdingExtendoGripIncreasesRange(EntityTickEvent.Pre event) {
-		if (!(event.getEntity() instanceof Player player))
-			return;
+    public static void holdingExtendoGripIncreasesRange(EntityTickEvent.Pre event) {
+        if (!(event.getEntity() instanceof Player player)) return;
 
-		CompoundTag persistentData = player.getCustomData();
-		boolean inOff = AllItems.EXTENDO_GRIP.isIn(player.getOffhandItem());
-		boolean inMain = AllItems.EXTENDO_GRIP.isIn(player.getMainHandItem());
-		boolean holdingDualExtendo = inOff && inMain;
-		boolean holdingExtendo = inOff ^ inMain;
-		holdingExtendo &= !holdingDualExtendo;
-		boolean wasHoldingExtendo = persistentData.contains(EXTENDO_MARKER);
-		boolean wasHoldingDualExtendo = persistentData.contains(DUAL_EXTENDO_MARKER);
+        CompoundTag persistentData = player.getCustomData();
+        boolean inOff = AllItems.EXTENDO_GRIP.isIn(player.getOffhandItem());
+        boolean inMain = AllItems.EXTENDO_GRIP.isIn(player.getMainHandItem());
+        boolean holdingDualExtendo = inOff && inMain;
+        boolean holdingExtendo = inOff ^ inMain;
+        holdingExtendo &= !holdingDualExtendo;
+        boolean wasHoldingExtendo = persistentData.contains(EXTENDO_MARKER);
+        boolean wasHoldingDualExtendo = persistentData.contains(DUAL_EXTENDO_MARKER);
 
-		if (holdingExtendo != wasHoldingExtendo) {
-			if (!holdingExtendo) {
-				player.getAttributes()
-					.removeAttributeModifiers(rangeModifier.get());
-				persistentData.remove(EXTENDO_MARKER);
-			} else {
-				AllAdvancements.EXTENDO_GRIP.awardTo(player);
-				player.getAttributes()
-					.addTransientAttributeModifiers(rangeModifier.get());
-				persistentData.putBoolean(EXTENDO_MARKER, true);
-			}
-		}
+        if (holdingExtendo != wasHoldingExtendo) {
+            if (!holdingExtendo) {
+                player.getAttributes().removeAttributeModifiers(rangeModifier.get());
+                persistentData.remove(EXTENDO_MARKER);
+            } else {
+                AllAdvancements.EXTENDO_GRIP.awardTo(player);
+                player.getAttributes().addTransientAttributeModifiers(rangeModifier.get());
+                persistentData.putBoolean(EXTENDO_MARKER, true);
+            }
+        }
 
-		if (holdingDualExtendo != wasHoldingDualExtendo) {
-			if (!holdingDualExtendo) {
-				player.getAttributes()
-					.removeAttributeModifiers(doubleRangeModifier.get());
-				persistentData.remove(DUAL_EXTENDO_MARKER);
-			} else {
-				AllAdvancements.EXTENDO_GRIP_DUAL.awardTo(player);
-				player.getAttributes()
-					.addTransientAttributeModifiers(doubleRangeModifier.get());
-				persistentData.putBoolean(DUAL_EXTENDO_MARKER, true);
-			}
-		}
+        if (holdingDualExtendo != wasHoldingDualExtendo) {
+            if (!holdingDualExtendo) {
+                player.getAttributes().removeAttributeModifiers(doubleRangeModifier.get());
+                persistentData.remove(DUAL_EXTENDO_MARKER);
+            } else {
+                AllAdvancements.EXTENDO_GRIP_DUAL.awardTo(player);
+                player.getAttributes().addTransientAttributeModifiers(doubleRangeModifier.get());
+                persistentData.putBoolean(DUAL_EXTENDO_MARKER, true);
+            }
+        }
+    }
 
-	}
+    public static void addReachToJoiningPlayersHoldingExtendo(
+            PlayerEvents.PlayerLoggedInEvent event) {
+        Player player = event.getEntity();
+        CompoundTag persistentData = player.getCustomData();
 
-	public static void addReachToJoiningPlayersHoldingExtendo(PlayerEvents.PlayerLoggedInEvent event) {
-		Player player = event.getEntity();
-		CompoundTag persistentData = player.getCustomData();
+        if (persistentData.contains(DUAL_EXTENDO_MARKER))
+            player.getAttributes().addTransientAttributeModifiers(doubleRangeModifier.get());
+        else if (persistentData.contains(EXTENDO_MARKER))
+            player.getAttributes().addTransientAttributeModifiers(rangeModifier.get());
+    }
 
-		if (persistentData.contains(DUAL_EXTENDO_MARKER))
-			player.getAttributes()
-				.addTransientAttributeModifiers(doubleRangeModifier.get());
-		else if (persistentData.contains(EXTENDO_MARKER))
-			player.getAttributes()
-				.addTransientAttributeModifiers(rangeModifier.get());
-	}
+    /**
+     * Fabric: replaces NeoForge's {@code InputEvent.InteractionKeyMappingTriggered}. Called from
+     * Create's own client input hooks (use/attack/pick) before the interaction is resolved.
+     */
+    @Environment(EnvType.CLIENT)
+    public static void dontMissEntitiesWhenYouHaveHighReachDistance() {
+        Minecraft mc = Minecraft.getInstance();
+        LocalPlayer player = mc.player;
+        if (mc.level == null || player == null) return;
+        if (!isHoldingExtendoGrip(player)) return;
+        if (mc.hitResult instanceof BlockHitResult && mc.hitResult.getType() != Type.MISS) return;
 
-	/**
-	 * Fabric: replaces NeoForge's {@code InputEvent.InteractionKeyMappingTriggered}. Called from
-	 * Create's own client input hooks (use/attack/pick) before the interaction is resolved.
-	 */
-	@Environment(EnvType.CLIENT)
-	public static void dontMissEntitiesWhenYouHaveHighReachDistance() {
-		Minecraft mc = Minecraft.getInstance();
-		LocalPlayer player = mc.player;
-		if (mc.level == null || player == null)
-			return;
-		if (!isHoldingExtendoGrip(player))
-			return;
-		if (mc.hitResult instanceof BlockHitResult && mc.hitResult.getType() != Type.MISS)
-			return;
+        // Modified version of GameRenderer#getMouseOver
+        double d0 = player.getAttributeValue(Attributes.BLOCK_INTERACTION_RANGE);
+        if (!player.isCreative()) d0 -= 0.5f;
+        Vec3 Vector3d = player.getEyePosition(AnimationTickHolder.getPartialTicks());
+        Vec3 Vector3d1 = player.getViewVector(1.0F);
+        Vec3 Vector3d2 = Vector3d.add(Vector3d1.x * d0, Vector3d1.y * d0, Vector3d1.z * d0);
+        AABB AABB =
+                player.getBoundingBox()
+                        .expandTowards(Vector3d1.scale(d0))
+                        .inflate(1.0D, 1.0D, 1.0D);
+        EntityHitResult entityraytraceresult =
+                ProjectileUtil.getEntityHitResult(
+                        player,
+                        Vector3d,
+                        Vector3d2,
+                        AABB,
+                        (e) -> {
+                            return !e.isSpectator() && e.isPickable();
+                        },
+                        d0 * d0);
+        if (entityraytraceresult != null) {
+            Entity entity1 = entityraytraceresult.getEntity();
+            Vec3 Vector3d3 = entityraytraceresult.getLocation();
+            double d2 = Vector3d.distanceToSqr(Vector3d3);
+            if (d2 < d0 * d0 || mc.hitResult == null || mc.hitResult.getType() == Type.MISS) {
+                mc.hitResult = entityraytraceresult;
+                if (entity1 instanceof LivingEntity || entity1 instanceof ItemFrame)
+                    mc.crosshairPickEntity = entity1;
+            }
+        }
+    }
 
-		// Modified version of GameRenderer#getMouseOver
-		double d0 = player.getAttributeValue(Attributes.BLOCK_INTERACTION_RANGE);
-		if (!player.isCreative())
-			d0 -= 0.5f;
-		Vec3 Vector3d = player.getEyePosition(AnimationTickHolder.getPartialTicks());
-		Vec3 Vector3d1 = player.getViewVector(1.0F);
-		Vec3 Vector3d2 = Vector3d.add(Vector3d1.x * d0, Vector3d1.y * d0, Vector3d1.z * d0);
-		AABB AABB = player.getBoundingBox()
-			.expandTowards(Vector3d1.scale(d0))
-			.inflate(1.0D, 1.0D, 1.0D);
-		EntityHitResult entityraytraceresult =
-			ProjectileUtil.getEntityHitResult(player, Vector3d, Vector3d2, AABB, (e) -> {
-				return !e.isSpectator() && e.isPickable();
-			}, d0 * d0);
-		if (entityraytraceresult != null) {
-			Entity entity1 = entityraytraceresult.getEntity();
-			Vec3 Vector3d3 = entityraytraceresult.getLocation();
-			double d2 = Vector3d.distanceToSqr(Vector3d3);
-			if (d2 < d0 * d0 || mc.hitResult == null || mc.hitResult.getType() == Type.MISS) {
-				mc.hitResult = entityraytraceresult;
-				if (entity1 instanceof LivingEntity || entity1 instanceof ItemFrame)
-					mc.crosshairPickEntity = entity1;
-			}
-		}
-	}
+    public static void consumeDurabilityOnBlockBreak(
+            Level level,
+            Player player,
+            BlockPos pos,
+            BlockState state,
+            @Nullable BlockEntity blockEntity) {
+        findAndDamageExtendoGrip(player);
+    }
 
-	public static void consumeDurabilityOnBlockBreak(Level level, Player player, BlockPos pos, BlockState state,
-		@Nullable BlockEntity blockEntity) {
-		findAndDamageExtendoGrip(player);
-	}
+    public static void consumeDurabilityOnPlace(
+            BlockPlaceContext context, BlockPos pos, BlockState state) {
+        findAndDamageExtendoGrip(context.getPlayer());
+    }
 
-	public static void consumeDurabilityOnPlace(BlockPlaceContext context, BlockPos pos, BlockState state) {
-		findAndDamageExtendoGrip(context.getPlayer());
-	}
+    private static void findAndDamageExtendoGrip(Player player) {
+        if (player == null) return;
+        if (player.level().isClientSide) return;
+        EquipmentSlot equipmentSlot = EquipmentSlot.MAINHAND;
+        ItemStack extendo = player.getMainHandItem();
+        if (!AllItems.EXTENDO_GRIP.isIn(extendo)) {
+            extendo = player.getOffhandItem();
+            equipmentSlot = EquipmentSlot.OFFHAND;
+        }
+        if (!AllItems.EXTENDO_GRIP.isIn(extendo)) return;
+        if (!BacktankUtil.canAbsorbDamage(player, maxUses()))
+            extendo.hurtAndBreak(1, player, equipmentSlot);
+    }
 
-	private static void findAndDamageExtendoGrip(Player player) {
-		if (player == null)
-			return;
-		if (player.level().isClientSide)
-			return;
-		EquipmentSlot equipmentSlot = EquipmentSlot.MAINHAND;
-		ItemStack extendo = player.getMainHandItem();
-		if (!AllItems.EXTENDO_GRIP.isIn(extendo)) {
-			extendo = player.getOffhandItem();
-			equipmentSlot = EquipmentSlot.OFFHAND;
-		}
-		if (!AllItems.EXTENDO_GRIP.isIn(extendo))
-			return;
-		if (!BacktankUtil.canAbsorbDamage(player, maxUses()))
-			extendo.hurtAndBreak(1, player, equipmentSlot);
-	}
+    @Override
+    public boolean isBarVisible(ItemStack stack) {
+        return BacktankUtil.isBarVisible(stack, maxUses());
+    }
 
-	@Override
-	public boolean isBarVisible(ItemStack stack) {
-		return BacktankUtil.isBarVisible(stack, maxUses());
-	}
+    @Override
+    public int getBarWidth(ItemStack stack) {
+        return BacktankUtil.getBarWidth(stack, maxUses());
+    }
 
-	@Override
-	public int getBarWidth(ItemStack stack) {
-		return BacktankUtil.getBarWidth(stack, maxUses());
-	}
+    @Override
+    public int getBarColor(ItemStack stack) {
+        return BacktankUtil.getBarColor(stack, maxUses());
+    }
 
-	@Override
-	public int getBarColor(ItemStack stack) {
-		return BacktankUtil.getBarColor(stack, maxUses());
-	}
+    private static int maxUses() {
+        return AllConfigs.server().equipment.maxExtendoGripActions.get();
+    }
 
-	private static int maxUses() {
-		return AllConfigs.server().equipment.maxExtendoGripActions.get();
-	}
+    public static void bufferLivingAttackEvent(LivingAttackEvent event) {
+        // Workaround for removed patch to get the attacking entity.
+        lastActiveDamageSource = event.getSource();
 
-	public static void bufferLivingAttackEvent(LivingAttackEvent event) {
-		// Workaround for removed patch to get the attacking entity.
-		lastActiveDamageSource = event.getSource();
+        DamageSource source = event.getSource();
+        if (source == null) return;
+        Entity trueSource = source.getEntity();
+        if (trueSource instanceof Player) findAndDamageExtendoGrip((Player) trueSource);
+    }
 
-		DamageSource source = event.getSource();
-		if (source == null)
-			return;
-		Entity trueSource = source.getEntity();
-		if (trueSource instanceof Player)
-			findAndDamageExtendoGrip((Player) trueSource);
-	}
+    public static void attacksByExtendoGripHaveMoreKnockback(LivingKnockBackEvent event) {
+        if (lastActiveDamageSource == null) return;
+        Entity entity = lastActiveDamageSource.getDirectEntity();
+        lastActiveDamageSource = null;
+        if (!(entity instanceof Player player)) return;
+        if (!isHoldingExtendoGrip(player)) return;
+        event.setStrength(event.getStrength() + 2);
+    }
 
-	public static void attacksByExtendoGripHaveMoreKnockback(LivingKnockBackEvent event) {
-		if (lastActiveDamageSource == null)
-			return;
-		Entity entity = lastActiveDamageSource.getDirectEntity();
-		lastActiveDamageSource = null;
-		if (!(entity instanceof Player player))
-			return;
-		if (!isHoldingExtendoGrip(player))
-			return;
-		event.setStrength(event.getStrength() + 2);
-	}
+    private static boolean isUncaughtClientInteraction(Entity entity, Entity target) {
+        // Server ignores entity interaction further than 6m
+        if (entity.distanceToSqr(target) < 36) return false;
+        if (!entity.level().isClientSide) return false;
+        if (!(entity instanceof Player)) return false;
+        return true;
+    }
 
-	private static boolean isUncaughtClientInteraction(Entity entity, Entity target) {
-		// Server ignores entity interaction further than 6m
-		if (entity.distanceToSqr(target) < 36)
-			return false;
-		if (!entity.level().isClientSide)
-			return false;
-		if (!(entity instanceof Player))
-			return false;
-		return true;
-	}
+    @Environment(EnvType.CLIENT)
+    public static void notifyServerOfLongRangeAttacks(AttackEntityEvent event) {
+        Entity entity = event.getEntity();
+        Entity target = event.getTarget();
+        if (!isUncaughtClientInteraction(entity, target)) return;
+        Player player = (Player) entity;
+        if (isHoldingExtendoGrip(player))
+            CatnipServices.NETWORK.sendToServer(new ExtendoGripInteractionPacket(target));
+    }
 
-	@Environment(EnvType.CLIENT)
-	public static void notifyServerOfLongRangeAttacks(AttackEntityEvent event) {
-		Entity entity = event.getEntity();
-		Entity target = event.getTarget();
-		if (!isUncaughtClientInteraction(entity, target))
-			return;
-		Player player = (Player) entity;
-		if (isHoldingExtendoGrip(player))
-			CatnipServices.NETWORK.sendToServer(new ExtendoGripInteractionPacket(target));
-	}
+    @Environment(EnvType.CLIENT)
+    public static void notifyServerOfLongRangeInteractions(
+            PlayerInteractEvent.EntityInteract event) {
+        Entity entity = event.getEntity();
+        Entity target = event.getTarget();
+        if (!isUncaughtClientInteraction(entity, target)) return;
+        Player player = (Player) entity;
+        if (isHoldingExtendoGrip(player))
+            CatnipServices.NETWORK.sendToServer(
+                    new ExtendoGripInteractionPacket(target, event.getHand()));
+    }
 
-	@Environment(EnvType.CLIENT)
-	public static void notifyServerOfLongRangeInteractions(PlayerInteractEvent.EntityInteract event) {
-		Entity entity = event.getEntity();
-		Entity target = event.getTarget();
-		if (!isUncaughtClientInteraction(entity, target))
-			return;
-		Player player = (Player) entity;
-		if (isHoldingExtendoGrip(player))
-			CatnipServices.NETWORK.sendToServer(new ExtendoGripInteractionPacket(target, event.getHand()));
-	}
+    @Environment(EnvType.CLIENT)
+    public static void notifyServerOfLongRangeSpecificInteractions(
+            PlayerInteractEvent.EntityInteractSpecific event) {
+        Player entity = event.getEntity();
+        Entity target = event.getTarget();
+        if (!isUncaughtClientInteraction(entity, target)) return;
+        if (isHoldingExtendoGrip(entity))
+            CatnipServices.NETWORK.sendToServer(
+                    new ExtendoGripInteractionPacket(target, event.getHand(), event.getLocalPos()));
+    }
 
-	@Environment(EnvType.CLIENT)
-	public static void notifyServerOfLongRangeSpecificInteractions(PlayerInteractEvent.EntityInteractSpecific event) {
-		Player entity = event.getEntity();
-		Entity target = event.getTarget();
-		if (!isUncaughtClientInteraction(entity, target))
-			return;
-		if (isHoldingExtendoGrip(entity))
-			CatnipServices.NETWORK.sendToServer(new ExtendoGripInteractionPacket(target, event.getHand(), event.getLocalPos()));
-	}
-
-	public static boolean isHoldingExtendoGrip(Player player) {
-		boolean inOff = AllItems.EXTENDO_GRIP.isIn(player.getOffhandItem());
-		boolean inMain = AllItems.EXTENDO_GRIP.isIn(player.getMainHandItem());
-		boolean holdingGrip = inOff || inMain;
-		return holdingGrip;
-	}
-
+    public static boolean isHoldingExtendoGrip(Player player) {
+        boolean inOff = AllItems.EXTENDO_GRIP.isIn(player.getOffhandItem());
+        boolean inMain = AllItems.EXTENDO_GRIP.isIn(player.getMainHandItem());
+        boolean holdingGrip = inOff || inMain;
+        return holdingGrip;
+    }
 }

@@ -1,14 +1,12 @@
 package com.simibubi.create.content.redstone.analogLever;
 
-
-import org.jetbrains.annotations.NotNull;
-import org.joml.Vector3f;
-
 import com.mojang.serialization.MapCodec;
 import com.simibubi.create.AllBlockEntityTypes;
 import com.simibubi.create.foundation.block.IBE;
 import com.simibubi.create.foundation.mixin.accessor.BlockBehaviourAccessor;
 
+import net.fabricmc.api.EnvType;
+import net.fabricmc.api.Environment;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.particles.DustParticleOptions;
@@ -31,115 +29,150 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.VoxelShape;
 
-import net.fabricmc.api.EnvType;
-import net.fabricmc.api.Environment;
+import org.jetbrains.annotations.NotNull;
+import org.joml.Vector3f;
 
-public class AnalogLeverBlock extends FaceAttachedHorizontalDirectionalBlock implements IBE<AnalogLeverBlockEntity> {
+public class AnalogLeverBlock extends FaceAttachedHorizontalDirectionalBlock
+        implements IBE<AnalogLeverBlockEntity> {
 
-	public static final MapCodec<AnalogLeverBlock> CODEC = simpleCodec(AnalogLeverBlock::new);
+    public static final MapCodec<AnalogLeverBlock> CODEC = simpleCodec(AnalogLeverBlock::new);
 
-	public AnalogLeverBlock(Properties p_i48402_1_) {
-		super(p_i48402_1_);
-	}
+    public AnalogLeverBlock(Properties p_i48402_1_) {
+        super(p_i48402_1_);
+    }
 
-	@Override
-	public InteractionResult useWithoutItem(BlockState state, Level worldIn, BlockPos pos, Player player, BlockHitResult hit) {
-		if (worldIn.isClientSide) {
-			addParticles(state, worldIn, pos, 1.0F);
-			return InteractionResult.SUCCESS;
-		}
+    @Override
+    public InteractionResult useWithoutItem(
+            BlockState state, Level worldIn, BlockPos pos, Player player, BlockHitResult hit) {
+        if (worldIn.isClientSide) {
+            addParticles(state, worldIn, pos, 1.0F);
+            return InteractionResult.SUCCESS;
+        }
 
-		return onBlockEntityUse(worldIn, pos, be -> {
-			boolean sneak = player.isShiftKeyDown();
-			be.changeState(sneak);
-			float f = .25f + ((be.state + 5) / 15f) * .5f;
-			worldIn.playSound(null, pos, SoundEvents.LEVER_CLICK, SoundSource.BLOCKS, 0.2F, f);
-			return InteractionResult.SUCCESS;
-		});
-	}
+        return onBlockEntityUse(
+                worldIn,
+                pos,
+                be -> {
+                    boolean sneak = player.isShiftKeyDown();
+                    be.changeState(sneak);
+                    float f = .25f + ((be.state + 5) / 15f) * .5f;
+                    worldIn.playSound(
+                            null, pos, SoundEvents.LEVER_CLICK, SoundSource.BLOCKS, 0.2F, f);
+                    return InteractionResult.SUCCESS;
+                });
+    }
 
-	@Override
-	public int getSignal(BlockState blockState, BlockGetter blockAccess, BlockPos pos, Direction side) {
-		return getBlockEntityOptional(blockAccess, pos).map(al -> al.state)
-			.orElse(0);
-	}
+    @Override
+    public int getSignal(
+            BlockState blockState, BlockGetter blockAccess, BlockPos pos, Direction side) {
+        return getBlockEntityOptional(blockAccess, pos).map(al -> al.state).orElse(0);
+    }
 
-	@Override
-	public boolean isSignalSource(BlockState state) {
-		return true;
-	}
+    @Override
+    public boolean isSignalSource(BlockState state) {
+        return true;
+    }
 
-	@Override
-	public int getDirectSignal(BlockState blockState, BlockGetter blockAccess, BlockPos pos, Direction side) {
-		return getConnectedDirection(blockState) == side ? getSignal(blockState, blockAccess, pos, side) : 0;
-	}
+    @Override
+    public int getDirectSignal(
+            BlockState blockState, BlockGetter blockAccess, BlockPos pos, Direction side) {
+        return getConnectedDirection(blockState) == side
+                ? getSignal(blockState, blockAccess, pos, side)
+                : 0;
+    }
 
-	@Override
-	@Environment(EnvType.CLIENT)
-	public void animateTick(BlockState stateIn, Level worldIn, BlockPos pos, RandomSource rand) {
-		withBlockEntityDo(worldIn, pos, be -> {
-			if (be.state != 0 && rand.nextFloat() < 0.25F)
-				addParticles(stateIn, worldIn, pos, 0.5F);
-		});
-	}
+    @Override
+    @Environment(EnvType.CLIENT)
+    public void animateTick(BlockState stateIn, Level worldIn, BlockPos pos, RandomSource rand) {
+        withBlockEntityDo(
+                worldIn,
+                pos,
+                be -> {
+                    if (be.state != 0 && rand.nextFloat() < 0.25F)
+                        addParticles(stateIn, worldIn, pos, 0.5F);
+                });
+    }
 
-	@Override
-	public void onRemove(BlockState state, Level worldIn, BlockPos pos, BlockState newState, boolean isMoving) {
-		if (isMoving || state.getBlock() == newState.getBlock())
-			return;
-		withBlockEntityDo(worldIn, pos, be -> {
-			if (be.state != 0)
-				updateNeighbors(state, worldIn, pos);
-			worldIn.removeBlockEntity(pos);
-		});
-	}
+    @Override
+    public void onRemove(
+            BlockState state, Level worldIn, BlockPos pos, BlockState newState, boolean isMoving) {
+        if (isMoving || state.getBlock() == newState.getBlock()) return;
+        withBlockEntityDo(
+                worldIn,
+                pos,
+                be -> {
+                    if (be.state != 0) updateNeighbors(state, worldIn, pos);
+                    worldIn.removeBlockEntity(pos);
+                });
+    }
 
-	private static void addParticles(BlockState state, LevelAccessor worldIn, BlockPos pos, float alpha) {
-		Direction direction = state.getValue(FACING)
-			.getOpposite();
-		Direction direction1 = getConnectedDirection(state).getOpposite();
-		double d0 =
-			(double) pos.getX() + 0.5D + 0.1D * (double) direction.getStepX() + 0.2D * (double) direction1.getStepX();
-		double d1 =
-			(double) pos.getY() + 0.5D + 0.1D * (double) direction.getStepY() + 0.2D * (double) direction1.getStepY();
-		double d2 =
-			(double) pos.getZ() + 0.5D + 0.1D * (double) direction.getStepZ() + 0.2D * (double) direction1.getStepZ();
-		worldIn.addParticle(new DustParticleOptions(new Vector3f(1.0F, 0.0F, 0.0F), alpha), d0, d1, d2, 0.0D, 0.0D,
-			0.0D);
-	}
+    private static void addParticles(
+            BlockState state, LevelAccessor worldIn, BlockPos pos, float alpha) {
+        Direction direction = state.getValue(FACING).getOpposite();
+        Direction direction1 = getConnectedDirection(state).getOpposite();
+        double d0 =
+                (double) pos.getX()
+                        + 0.5D
+                        + 0.1D * (double) direction.getStepX()
+                        + 0.2D * (double) direction1.getStepX();
+        double d1 =
+                (double) pos.getY()
+                        + 0.5D
+                        + 0.1D * (double) direction.getStepY()
+                        + 0.2D * (double) direction1.getStepY();
+        double d2 =
+                (double) pos.getZ()
+                        + 0.5D
+                        + 0.1D * (double) direction.getStepZ()
+                        + 0.2D * (double) direction1.getStepZ();
+        worldIn.addParticle(
+                new DustParticleOptions(new Vector3f(1.0F, 0.0F, 0.0F), alpha),
+                d0,
+                d1,
+                d2,
+                0.0D,
+                0.0D,
+                0.0D);
+    }
 
-	static void updateNeighbors(BlockState state, Level world, BlockPos pos) {
-		world.updateNeighborsAt(pos, state.getBlock());
-		world.updateNeighborsAt(pos.relative(getConnectedDirection(state).getOpposite()), state.getBlock());
-	}
+    static void updateNeighbors(BlockState state, Level world, BlockPos pos) {
+        world.updateNeighborsAt(pos, state.getBlock());
+        world.updateNeighborsAt(
+                pos.relative(getConnectedDirection(state).getOpposite()), state.getBlock());
+    }
 
-	@Override
-	public @NotNull VoxelShape getShape(@NotNull BlockState state, @NotNull BlockGetter worldIn, @NotNull BlockPos pos, @NotNull CollisionContext context) {
-		return ((BlockBehaviourAccessor) Blocks.LEVER).create$getShape(state, worldIn, pos, context);
-	}
+    @Override
+    public @NotNull VoxelShape getShape(
+            @NotNull BlockState state,
+            @NotNull BlockGetter worldIn,
+            @NotNull BlockPos pos,
+            @NotNull CollisionContext context) {
+        return ((BlockBehaviourAccessor) Blocks.LEVER)
+                .create$getShape(state, worldIn, pos, context);
+    }
 
-	@Override
-	protected void createBlockStateDefinition(Builder<Block, BlockState> builder) {
-		super.createBlockStateDefinition(builder.add(FACING, FACE));
-	}
+    @Override
+    protected void createBlockStateDefinition(Builder<Block, BlockState> builder) {
+        super.createBlockStateDefinition(builder.add(FACING, FACE));
+    }
 
-	@Override
-	public Class<AnalogLeverBlockEntity> getBlockEntityClass() {
-		return AnalogLeverBlockEntity.class;
-	}
+    @Override
+    public Class<AnalogLeverBlockEntity> getBlockEntityClass() {
+        return AnalogLeverBlockEntity.class;
+    }
 
-	@Override
-	public BlockEntityType<? extends AnalogLeverBlockEntity> getBlockEntityType() {
-		return AllBlockEntityTypes.ANALOG_LEVER.get();
-	}
+    @Override
+    public BlockEntityType<? extends AnalogLeverBlockEntity> getBlockEntityType() {
+        return AllBlockEntityTypes.ANALOG_LEVER.get();
+    }
 
-	@Override
-	protected boolean isPathfindable(BlockState state, PathComputationType pathComputationType) {
-		return false;
-	}
+    @Override
+    protected boolean isPathfindable(BlockState state, PathComputationType pathComputationType) {
+        return false;
+    }
 
-	@Override
-	protected @NotNull MapCodec<? extends FaceAttachedHorizontalDirectionalBlock> codec() {
-		return CODEC;
-	}
+    @Override
+    protected @NotNull MapCodec<? extends FaceAttachedHorizontalDirectionalBlock> codec() {
+        return CODEC;
+    }
 }

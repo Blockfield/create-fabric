@@ -1,13 +1,31 @@
 import os
-colors = {"white", "orange", "magenta", "light_blue", "yellow", "lime", "pink", "gray", "light_gray", "cyan", "purple", "blue", "brown", "green", "red", "black"}
+
+colors = {
+    "white",
+    "orange",
+    "magenta",
+    "light_blue",
+    "yellow",
+    "lime",
+    "pink",
+    "gray",
+    "light_gray",
+    "cyan",
+    "purple",
+    "blue",
+    "brown",
+    "green",
+    "red",
+    "black",
+}
 tagsPath = "../src/main/resources/data/c/tags/items/dyes/"
-tagTemplate = '''{
+tagTemplate = """{
   "replace": false,
   "values": [
     "minecraft:%s_dye"
   ]
 }
-'''
+"""
 
 for color in colors:
     tagName = tagsPath + color + ".json"

@@ -1,105 +1,103 @@
 package com.simibubi.create.content.contraptions.actors.psi;
 
-import java.util.Iterator;
-
-import org.jetbrains.annotations.Nullable;
-
-import com.simibubi.create.AllBlockEntityTypes;
 import com.simibubi.create.content.contraptions.Contraption;
 import com.simibubi.create.foundation.item.ItemHandlerWrapper;
+import com.simibubi.create.infrastructure.fabric.ProcessingIterator;
 import com.simibubi.create.infrastructure.fabric.transfer.ChangeListeningViewWrapper;
 import com.simibubi.create.infrastructure.fabric.transfer.TransactionSuccessCallback;
-import com.simibubi.create.infrastructure.fabric.ProcessingIterator;
 
 import net.fabricmc.fabric.api.transfer.v1.item.ItemVariant;
 import net.fabricmc.fabric.api.transfer.v1.storage.Storage;
-
 import net.fabricmc.fabric.api.transfer.v1.storage.StorageView;
 import net.fabricmc.fabric.api.transfer.v1.storage.base.SidedStorageBlockEntity;
 import net.fabricmc.fabric.api.transfer.v1.transaction.TransactionContext;
-
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 
-import io.github.fabricators_of_create.porting_lib.transfer.callbacks.TransactionCallback;
+import org.jetbrains.annotations.Nullable;
 
-public class PortableItemInterfaceBlockEntity extends PortableStorageInterfaceBlockEntity implements SidedStorageBlockEntity {
+import java.util.Iterator;
 
-	protected InterfaceItemHandler capability;
+public class PortableItemInterfaceBlockEntity extends PortableStorageInterfaceBlockEntity
+        implements SidedStorageBlockEntity {
 
-	public PortableItemInterfaceBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state) {
-		super(type, pos, state);
-		capability = createEmptyHandler();
-	}
+    protected InterfaceItemHandler capability;
 
-	@Override
-	public void startTransferringTo(Contraption contraption, float distance) {
-		capability.setWrapped(contraption.getStorage().getAllItems());
-		super.startTransferringTo(contraption, distance);
-	}
+    public PortableItemInterfaceBlockEntity(
+            BlockEntityType<?> type, BlockPos pos, BlockState state) {
+        super(type, pos, state);
+        capability = createEmptyHandler();
+    }
 
-	@Override
-	protected void stopTransferring() {
-		capability.setWrapped(Storage.empty());
-		super.stopTransferring();
-	}
+    @Override
+    public void startTransferringTo(Contraption contraption, float distance) {
+        capability.setWrapped(contraption.getStorage().getAllItems());
+        super.startTransferringTo(contraption, distance);
+    }
 
-	private InterfaceItemHandler createEmptyHandler() {
-		return new InterfaceItemHandler(Storage.empty());
-	}
+    @Override
+    protected void stopTransferring() {
+        capability.setWrapped(Storage.empty());
+        super.stopTransferring();
+    }
 
-	@Override
-	protected void invalidateCapability() {
-		capability.setWrapped(Storage.empty());
-	}
+    private InterfaceItemHandler createEmptyHandler() {
+        return new InterfaceItemHandler(Storage.empty());
+    }
 
-	@Nullable
-	@Override
-	public Storage<ItemVariant> getItemStorage(@Nullable Direction face) {
-		return capability;
-	}
+    @Override
+    protected void invalidateCapability() {
+        capability.setWrapped(Storage.empty());
+    }
 
-	class InterfaceItemHandler extends ItemHandlerWrapper {
+    @Nullable
+    @Override
+    public Storage<ItemVariant> getItemStorage(@Nullable Direction face) {
+        return capability;
+    }
 
-		public InterfaceItemHandler(Storage<ItemVariant> wrapped) {
-			super(wrapped);
-		}
+    class InterfaceItemHandler extends ItemHandlerWrapper {
 
-		@Override
-		public long extract(ItemVariant resource, long maxAmount, TransactionContext transaction) {
-			if (!canTransfer())
-				return 0;
-			long extracted = super.extract(resource, maxAmount, transaction);
-			if (extracted != 0) {
-				TransactionSuccessCallback.register(transaction, PortableItemInterfaceBlockEntity.this::onContentTransferred);
-			}
-			return extracted;
-		}
+        public InterfaceItemHandler(Storage<ItemVariant> wrapped) {
+            super(wrapped);
+        }
 
-		@Override
-		public long insert(ItemVariant resource, long maxAmount, TransactionContext transaction) {
-			if (!canTransfer())
-				return 0;
-			long inserted = super.insert(resource, maxAmount, transaction);
-			if (inserted != 0) {
-				TransactionSuccessCallback.register(transaction, PortableItemInterfaceBlockEntity.this::onContentTransferred);
-			}
-			return inserted;
-		}
+        @Override
+        public long extract(ItemVariant resource, long maxAmount, TransactionContext transaction) {
+            if (!canTransfer()) return 0;
+            long extracted = super.extract(resource, maxAmount, transaction);
+            if (extracted != 0) {
+                TransactionSuccessCallback.register(
+                        transaction, PortableItemInterfaceBlockEntity.this::onContentTransferred);
+            }
+            return extracted;
+        }
 
-		@Override
-		public Iterator<StorageView<ItemVariant>> iterator() {
-			return new ProcessingIterator<>(super.iterator(), this::listen);
-		}
+        @Override
+        public long insert(ItemVariant resource, long maxAmount, TransactionContext transaction) {
+            if (!canTransfer()) return 0;
+            long inserted = super.insert(resource, maxAmount, transaction);
+            if (inserted != 0) {
+                TransactionSuccessCallback.register(
+                        transaction, PortableItemInterfaceBlockEntity.this::onContentTransferred);
+            }
+            return inserted;
+        }
 
-		public <T> StorageView<T> listen(StorageView<T> view) {
-			return new ChangeListeningViewWrapper<>(view, PortableItemInterfaceBlockEntity.this::onContentTransferred);
-		}
+        @Override
+        public Iterator<StorageView<ItemVariant>> iterator() {
+            return new ProcessingIterator<>(super.iterator(), this::listen);
+        }
 
-		private void setWrapped(Storage<ItemVariant> wrapped) {
-			this.wrapped = wrapped;
-		}
-	}
+        public <T> StorageView<T> listen(StorageView<T> view) {
+            return new ChangeListeningViewWrapper<>(
+                    view, PortableItemInterfaceBlockEntity.this::onContentTransferred);
+        }
+
+        private void setWrapped(Storage<ItemVariant> wrapped) {
+            this.wrapped = wrapped;
+        }
+    }
 }

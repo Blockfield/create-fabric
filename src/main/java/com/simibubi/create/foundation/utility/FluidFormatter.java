@@ -1,34 +1,32 @@
 package com.simibubi.create.foundation.utility;
 
-import net.createmod.catnip.data.Couple;
-import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.MutableComponent;
-
-import net.fabricmc.fabric.api.transfer.v1.fluid.FluidConstants;
-
 import io.github.fabricators_of_create.porting_lib.util.FluidTextUtil;
 import io.github.fabricators_of_create.porting_lib.util.FluidUnit;
 
+import net.createmod.catnip.data.Couple;
+import net.fabricmc.fabric.api.transfer.v1.fluid.FluidConstants;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MutableComponent;
+
 public class FluidFormatter {
 
-	public static String asString(long amount, boolean shorten, FluidUnit unit) {
-		Couple<MutableComponent> couple = asComponents(amount, shorten, unit);
-		return couple.getFirst().getString() + " " + couple.getSecond().getString();
-	}
+    public static String asString(long amount, boolean shorten, FluidUnit unit) {
+        Couple<MutableComponent> couple = asComponents(amount, shorten, unit);
+        return couple.getFirst().getString() + " " + couple.getSecond().getString();
+    }
 
-	public static Couple<MutableComponent> asComponents(long amount, boolean shorten, FluidUnit unit) {
-		if (shorten && amount >= FluidConstants.BUCKET && unit == FluidUnit.MILLIBUCKETS) {
-			return Couple.create(
-					Component.literal(String.format("%.1f" , amount / (double) FluidConstants.BUCKET)),
-					CreateLang.translateDirect("generic.unit.buckets")
-			);
-		}
+    public static Couple<MutableComponent> asComponents(
+            long amount, boolean shorten, FluidUnit unit) {
+        if (shorten && amount >= FluidConstants.BUCKET && unit == FluidUnit.MILLIBUCKETS) {
+            return Couple.create(
+                    Component.literal(
+                            String.format("%.1f", amount / (double) FluidConstants.BUCKET)),
+                    CreateLang.translateDirect("generic.unit.buckets"));
+        }
 
-		String amountToDisplay = FluidTextUtil.getUnicodeMillibuckets(amount, unit, true);
-		return Couple.create(
-				Component.literal(amountToDisplay),
-				CreateLang.translateDirect(unit.getTranslationKey())
-		);
-	}
-
+        String amountToDisplay = FluidTextUtil.getUnicodeMillibuckets(amount, unit, true);
+        return Couple.create(
+                Component.literal(amountToDisplay),
+                CreateLang.translateDirect(unit.getTranslationKey()));
+    }
 }

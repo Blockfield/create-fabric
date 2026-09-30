@@ -1,8 +1,8 @@
 package com.simibubi.create.content.contraptions.mounted;
 
-//@MethodsReturnNonnullByDefault
-//@ParametersAreNonnullByDefault
-//public class ItemHandlerModifiableFromIInventory implements IItemHandlerModifiable {
+// @MethodsReturnNonnullByDefault
+// @ParametersAreNonnullByDefault
+// public class ItemHandlerModifiableFromIInventory implements IItemHandlerModifiable {
 //	private final Container inventory;
 //
 //	public ItemHandlerModifiableFromIInventory(Container inventory) {
@@ -57,7 +57,8 @@ package com.simibubi.create.content.contraptions.mounted;
 //		{
 //			if (existing.isEmpty())
 //			{
-//				setStackInSlot(slot, reachedLimit ? ItemHandlerHelper.copyStackWithSize(stack, limit) : stack);
+//				setStackInSlot(slot, reachedLimit ? ItemHandlerHelper.copyStackWithSize(stack, limit) :
+// stack);
 //			}
 //			else
 //			{
@@ -65,7 +66,8 @@ package com.simibubi.create.content.contraptions.mounted;
 //			}
 //		}
 //
-//		return reachedLimit ? ItemHandlerHelper.copyStackWithSize(stack, stack.getCount()- limit) : ItemStack.EMPTY;
+//		return reachedLimit ? ItemHandlerHelper.copyStackWithSize(stack, stack.getCount()- limit) :
+// ItemStack.EMPTY;
 //	}
 //
 //	@Override
@@ -100,7 +102,8 @@ package com.simibubi.create.content.contraptions.mounted;
 //		{
 //			if (!simulate)
 //			{
-//				setStackInSlot(slot, ItemHandlerHelper.copyStackWithSize(existing, existing.getCount() - toExtract));
+//				setStackInSlot(slot, ItemHandlerHelper.copyStackWithSize(existing, existing.getCount() -
+// toExtract));
 //			}
 //
 //			return ItemHandlerHelper.copyStackWithSize(existing, toExtract);
@@ -127,4 +130,4 @@ package com.simibubi.create.content.contraptions.mounted;
 //	{
 //		return Math.min(getSlotLimit(slot), stack.getMaxStackSize());
 //	}
-//}
+// }

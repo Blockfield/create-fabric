@@ -1,8 +1,5 @@
 package com.simibubi.create.content.logistics.packagePort.frogport;
 
-import java.util.List;
-
-import com.simibubi.create.AllBlockEntityTypes;
 import com.simibubi.create.AllBlocks;
 import com.simibubi.create.AllItems;
 import com.simibubi.create.api.equipment.goggles.IHaveHoveringInformation;
@@ -15,19 +12,17 @@ import com.simibubi.create.foundation.advancement.AllAdvancements;
 import com.simibubi.create.foundation.blockEntity.behaviour.BlockEntityBehaviour;
 import com.simibubi.create.foundation.item.ItemHelper;
 import com.simibubi.create.foundation.item.TooltipHelper;
-
 import com.simibubi.create.infrastructure.fabric.transfer.TransferUtil;
 
 import net.createmod.catnip.animation.LerpedFloat;
 import net.createmod.catnip.animation.LerpedFloat.Chaser;
 import net.createmod.catnip.data.Iterate;
 import net.createmod.catnip.nbt.NBTHelper;
-
+import net.fabricmc.fabric.api.transfer.v1.item.ItemStorage;
 import net.fabricmc.fabric.api.transfer.v1.item.ItemVariant;
 import net.fabricmc.fabric.api.transfer.v1.storage.Storage;
 import net.fabricmc.fabric.api.transfer.v1.storage.StorageView;
 import net.fabricmc.fabric.api.transfer.v1.transaction.Transaction;
-
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
@@ -46,346 +41,348 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
-import net.fabricmc.fabric.api.transfer.v1.item.ItemStorage;
-import net.fabricmc.fabric.api.transfer.v1.item.ItemVariant;
-import net.fabricmc.fabric.api.transfer.v1.storage.Storage;
+import java.util.List;
 
-public class FrogportBlockEntity extends PackagePortBlockEntity implements IHaveHoveringInformation {
+public class FrogportBlockEntity extends PackagePortBlockEntity
+        implements IHaveHoveringInformation {
 
-	public ItemStack animatedPackage;
-	public LerpedFloat manualOpenAnimationProgress;
-	public LerpedFloat animationProgress;
-	public LerpedFloat anticipationProgress;
-	public boolean currentlyDepositing;
-	public boolean goggles;
+    public ItemStack animatedPackage;
+    public LerpedFloat manualOpenAnimationProgress;
+    public LerpedFloat animationProgress;
+    public LerpedFloat anticipationProgress;
+    public boolean currentlyDepositing;
+    public boolean goggles;
 
-	public boolean sendAnticipate;
+    public boolean sendAnticipate;
 
-	public float passiveYaw;
+    public float passiveYaw;
 
-	private boolean failedLastExport;
-	private FrogportSounds sounds;
+    private boolean failedLastExport;
+    private FrogportSounds sounds;
 
-	private ItemStack deferAnimationStart;
-	private boolean deferAnimationInward;
+    private ItemStack deferAnimationStart;
+    private boolean deferAnimationInward;
 
-	private AdvancementBehaviour advancements;
+    private AdvancementBehaviour advancements;
 
-	public FrogportBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state) {
-		super(type, pos, state);
-		sounds = new FrogportSounds();
-		animationProgress = LerpedFloat.linear();
-		anticipationProgress = LerpedFloat.linear();
-		manualOpenAnimationProgress = LerpedFloat.linear()
-			.startWithValue(0)
-			.chase(0, 0.35, Chaser.LINEAR);
-		goggles = false;
-	}
+    public FrogportBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state) {
+        super(type, pos, state);
+        sounds = new FrogportSounds();
+        animationProgress = LerpedFloat.linear();
+        anticipationProgress = LerpedFloat.linear();
+        manualOpenAnimationProgress =
+                LerpedFloat.linear().startWithValue(0).chase(0, 0.35, Chaser.LINEAR);
+        goggles = false;
+    }
 
-	@Override
-	public void addBehaviours(List<BlockEntityBehaviour> behaviours) {
-		behaviours.add(advancements = new AdvancementBehaviour(this, AllAdvancements.FROGPORT));
-		super.addBehaviours(behaviours);
-	}
+    @Override
+    public void addBehaviours(List<BlockEntityBehaviour> behaviours) {
+        behaviours.add(advancements = new AdvancementBehaviour(this, AllAdvancements.FROGPORT));
+        super.addBehaviours(behaviours);
+    }
 
-	public boolean isAnimationInProgress() {
-		return animationProgress.getChaseTarget() == 1;
-	}
+    public boolean isAnimationInProgress() {
+        return animationProgress.getChaseTarget() == 1;
+    }
 
-	@Override
-	public AABB getRenderBoundingBox() {
-		AABB bb = super.getRenderBoundingBox().expandTowards(0, 1, 0);
-		if (target != null)
-			bb = bb.minmax(new AABB(BlockPos.containing(target.getExactTargetLocation(this, level, worldPosition))))
-				.inflate(0.5);
-		return bb;
-	}
+    @Override
+    public AABB getRenderBoundingBox() {
+        AABB bb = super.getRenderBoundingBox().expandTowards(0, 1, 0);
+        if (target != null)
+            bb =
+                    bb.minmax(
+                                    new AABB(
+                                            BlockPos.containing(
+                                                    target.getExactTargetLocation(
+                                                            this, level, worldPosition))))
+                            .inflate(0.5);
+        return bb;
+    }
 
-	@Override
-	public void lazyTick() {
-		super.lazyTick();
-		if (level.isClientSide() || isAnimationInProgress())
-			return;
+    @Override
+    public void lazyTick() {
+        super.lazyTick();
+        if (level.isClientSide() || isAnimationInProgress()) return;
 
-		boolean prevFail = failedLastExport;
-		tryPushingToAdjacentInventories();
-		tryPullingFromOwnAndAdjacentInventories();
+        boolean prevFail = failedLastExport;
+        tryPushingToAdjacentInventories();
+        tryPullingFromOwnAndAdjacentInventories();
 
-		if (failedLastExport != prevFail)
-			sendData();
-	}
+        if (failedLastExport != prevFail) sendData();
+    }
 
-	public void sendAnticipate() {
-		if (isAnimationInProgress())
-			return;
-		for (int i = 0; i < inventory.getSlotCount(); i++)
-			if (inventory.getStackInSlot(i)
-				.isEmpty()) {
-				sendAnticipate = true;
-				sendData();
-				return;
-			}
-	}
+    public void sendAnticipate() {
+        if (isAnimationInProgress()) return;
+        for (int i = 0; i < inventory.getSlotCount(); i++)
+            if (inventory.getStackInSlot(i).isEmpty()) {
+                sendAnticipate = true;
+                sendData();
+                return;
+            }
+    }
 
-	public void anticipate() {
-		anticipationProgress.chase(1, 0.1, Chaser.LINEAR);
-	}
+    public void anticipate() {
+        anticipationProgress.chase(1, 0.1, Chaser.LINEAR);
+    }
 
-	@Override
-	public void tick() {
-		super.tick();
+    @Override
+    public void tick() {
+        super.tick();
 
-		if (deferAnimationStart != null) {
-			startAnimation(deferAnimationStart, deferAnimationInward);
-			deferAnimationStart = null;
-		}
+        if (deferAnimationStart != null) {
+            startAnimation(deferAnimationStart, deferAnimationInward);
+            deferAnimationStart = null;
+        }
 
-		if (anticipationProgress.getValue() == 1)
-			anticipationProgress.startWithValue(0);
+        if (anticipationProgress.getValue() == 1) anticipationProgress.startWithValue(0);
 
-		manualOpenAnimationProgress.updateChaseTarget(openTracker.openCount > 0 ? 1 : 0);
-		boolean wasOpen = manualOpenAnimationProgress.getValue() > 0;
+        manualOpenAnimationProgress.updateChaseTarget(openTracker.openCount > 0 ? 1 : 0);
+        boolean wasOpen = manualOpenAnimationProgress.getValue() > 0;
 
-		anticipationProgress.tickChaser();
-		manualOpenAnimationProgress.tickChaser();
+        anticipationProgress.tickChaser();
+        manualOpenAnimationProgress.tickChaser();
 
-		if (level.isClientSide() && wasOpen && manualOpenAnimationProgress.getValue() == 0)
-			sounds.close(level, worldPosition);
+        if (level.isClientSide() && wasOpen && manualOpenAnimationProgress.getValue() == 0)
+            sounds.close(level, worldPosition);
 
-		if (!isAnimationInProgress())
-			return;
+        if (!isAnimationInProgress()) return;
 
-		animationProgress.tickChaser();
+        animationProgress.tickChaser();
 
-		float value = animationProgress.getValue();
-		if (currentlyDepositing) {
-			if (!level.isClientSide() || isVirtual()) {
-				if (value > 0.5 && animatedPackage != null) {
-					if (target == null
-						|| !target.depositImmediately() && !target.export(level, worldPosition, animatedPackage, false))
-						drop(animatedPackage);
-					animatedPackage = null;
-				}
-			} else {
-				if (value > 0.7 && animatedPackage != null)
-					animatedPackage = null;
-				if (animationProgress.getValue(0) < 0.2 && value > 0.2) {
-					Vec3 v = target.getExactTargetLocation(this, level, worldPosition);
-					level.playLocalSound(v.x, v.y, v.z, SoundEvents.CHAIN_STEP, SoundSource.BLOCKS, 0.25f, 1.2f, false);
-				}
-			}
-		}
+        float value = animationProgress.getValue();
+        if (currentlyDepositing) {
+            if (!level.isClientSide() || isVirtual()) {
+                if (value > 0.5 && animatedPackage != null) {
+                    if (target == null
+                            || !target.depositImmediately()
+                                    && !target.export(level, worldPosition, animatedPackage, false))
+                        drop(animatedPackage);
+                    animatedPackage = null;
+                }
+            } else {
+                if (value > 0.7 && animatedPackage != null) animatedPackage = null;
+                if (animationProgress.getValue(0) < 0.2 && value > 0.2) {
+                    Vec3 v = target.getExactTargetLocation(this, level, worldPosition);
+                    level.playLocalSound(
+                            v.x,
+                            v.y,
+                            v.z,
+                            SoundEvents.CHAIN_STEP,
+                            SoundSource.BLOCKS,
+                            0.25f,
+                            1.2f,
+                            false);
+                }
+            }
+        }
 
-		if (value < 1)
-			return;
+        if (value < 1) return;
 
-		anticipationProgress.startWithValue(0);
-		animationProgress.startWithValue(0);
-		if (level.isClientSide()) {
-//			sounds.close(level, worldPosition);
-			animatedPackage = null;
-			return;
-		}
+        anticipationProgress.startWithValue(0);
+        animationProgress.startWithValue(0);
+        if (level.isClientSide()) {
+            //			sounds.close(level, worldPosition);
+            animatedPackage = null;
+            return;
+        }
 
-		if (!currentlyDepositing) {
-			long inserted = TransferUtil.insert(this.inventory, animatedPackage.copy());
-			if (inserted <= 0)
-				drop(animatedPackage);
-		}
+        if (!currentlyDepositing) {
+            long inserted = TransferUtil.insert(this.inventory, animatedPackage.copy());
+            if (inserted <= 0) drop(animatedPackage);
+        }
 
-		animatedPackage = null;
-	}
+        animatedPackage = null;
+    }
 
-	public void startAnimation(ItemStack box, boolean deposit) {
-		if (!PackageItem.isPackage(box))
-			return;
+    public void startAnimation(ItemStack box, boolean deposit) {
+        if (!PackageItem.isPackage(box)) return;
 
-		if (deposit && (target == null
-			|| target.depositImmediately() && !target.export(level, worldPosition, box.copy(), false)))
-			return;
+        if (deposit
+                && (target == null
+                        || target.depositImmediately()
+                                && !target.export(level, worldPosition, box.copy(), false))) return;
 
-		animationProgress.startWithValue(0);
-		animationProgress.chase(1, 0.1, Chaser.LINEAR);
-		animatedPackage = box;
-		currentlyDepositing = deposit;
+        animationProgress.startWithValue(0);
+        animationProgress.chase(1, 0.1, Chaser.LINEAR);
+        animatedPackage = box;
+        currentlyDepositing = deposit;
 
-		if (level != null && !deposit && !level.isClientSide())
-			advancements.awardPlayer(AllAdvancements.FROGPORT);
+        if (level != null && !deposit && !level.isClientSide())
+            advancements.awardPlayer(AllAdvancements.FROGPORT);
 
-		if (level != null && level.isClientSide()) {
-			sounds.open(level, worldPosition);
+        if (level != null && level.isClientSide()) {
+            sounds.open(level, worldPosition);
 
-			if (currentlyDepositing) {
-				sounds.depositPackage(level, worldPosition);
+            if (currentlyDepositing) {
+                sounds.depositPackage(level, worldPosition);
 
-			} else {
-				sounds.catchPackage(level, worldPosition);
-				Vec3 vec = target.getExactTargetLocation(this, level, worldPosition);
-				if (vec != null)
-					for (int i = 0; i < 5; i++)
-						level.addParticle(
-							new BlockParticleOption(ParticleTypes.BLOCK, AllBlocks.ROPE.getDefaultState()), vec.x,
-							vec.y - level.random.nextFloat() * 0.25, vec.z, 0, 0, 0);
-			}
-		}
+            } else {
+                sounds.catchPackage(level, worldPosition);
+                Vec3 vec = target.getExactTargetLocation(this, level, worldPosition);
+                if (vec != null)
+                    for (int i = 0; i < 5; i++)
+                        level.addParticle(
+                                new BlockParticleOption(
+                                        ParticleTypes.BLOCK, AllBlocks.ROPE.getDefaultState()),
+                                vec.x,
+                                vec.y - level.random.nextFloat() * 0.25,
+                                vec.z,
+                                0,
+                                0,
+                                0);
+            }
+        }
 
-		if (level != null && !level.isClientSide()) {
-			level.blockEntityChanged(worldPosition);
-			sendData();
-		}
-	}
+        if (level != null && !level.isClientSide()) {
+            level.blockEntityChanged(worldPosition);
+            sendData();
+        }
+    }
 
-	protected void tryPushingToAdjacentInventories() {
-		failedLastExport = false;
-		Storage<ItemVariant> inventory = this.exposedInventory;
+    protected void tryPushingToAdjacentInventories() {
+        failedLastExport = false;
+        Storage<ItemVariant> inventory = this.exposedInventory;
 
-		if (inventory == null)
-			return;
+        if (inventory == null) return;
 
-		if (!inventory.nonEmptyViews().iterator().hasNext())
-			return;
+        if (!inventory.nonEmptyViews().iterator().hasNext()) return;
 
-		Storage<ItemVariant> handler = getAdjacentInventory(Direction.DOWN);
-		if (handler == null)
-			return;
+        Storage<ItemVariant> handler = getAdjacentInventory(Direction.DOWN);
+        if (handler == null) return;
 
-		try (Transaction t = Transaction.openOuter()) {
-			boolean failed = false;
-			for (StorageView<ItemVariant> view : inventory.nonEmptyViews()) {
-				ItemVariant resource = view.getResource();
-				long extracted = view.extract(resource, view.getAmount(), t);
-				if (extracted <= 0)
-					continue;
+        try (Transaction t = Transaction.openOuter()) {
+            boolean failed = false;
+            for (StorageView<ItemVariant> view : inventory.nonEmptyViews()) {
+                ItemVariant resource = view.getResource();
+                long extracted = view.extract(resource, view.getAmount(), t);
+                if (extracted <= 0) continue;
 
-				long inserted = handler.insert(resource, extracted, t);
-				if (inserted != extracted) {
-					failed = true;
-					break;
-				}
-			}
-			if (failed) {
-				failedLastExport = true;
-			} else {
-				t.commit();
-				level.blockEntityChanged(worldPosition);
-			}
-		}
-	}
+                long inserted = handler.insert(resource, extracted, t);
+                if (inserted != extracted) {
+                    failed = true;
+                    break;
+                }
+            }
+            if (failed) {
+                failedLastExport = true;
+            } else {
+                t.commit();
+                level.blockEntityChanged(worldPosition);
+            }
+        }
+    }
 
-	@Override
-	protected void onOpenChange(boolean open) {
-	}
+    @Override
+    protected void onOpenChange(boolean open) {}
 
-	public void tryPullingFromOwnAndAdjacentInventories() {
-		if (isAnimationInProgress())
-			return;
-		if (target == null || !target.export(level, worldPosition, PackageStyles.getDefaultBox(), true))
-			return;
-		if (tryPullingFrom(inventory))
-			return;
-		for (Direction side : Iterate.directions) {
-			if (side != Direction.DOWN)
-				continue;
-			Storage<ItemVariant> handler = getAdjacentInventory(side);
-			if (handler == null)
-				continue;
-			if (tryPullingFrom(handler))
-				return;
-		}
-	}
+    public void tryPullingFromOwnAndAdjacentInventories() {
+        if (isAnimationInProgress()) return;
+        if (target == null
+                || !target.export(level, worldPosition, PackageStyles.getDefaultBox(), true))
+            return;
+        if (tryPullingFrom(inventory)) return;
+        for (Direction side : Iterate.directions) {
+            if (side != Direction.DOWN) continue;
+            Storage<ItemVariant> handler = getAdjacentInventory(side);
+            if (handler == null) continue;
+            if (tryPullingFrom(handler)) return;
+        }
+    }
 
-	public boolean tryPullingFrom(Storage<ItemVariant> handler) {
-		ItemStack extract = ItemHelper.extract(handler, stack -> {
-			if (!PackageItem.isPackage(stack))
-				return false;
-			String filterString = getFilterString();
-			return filterString == null || handler instanceof PackagerItemHandler
-				|| !PackageItem.matchAddress(stack, filterString);
-		}, false);
-		if (extract.isEmpty())
-			return false;
-		startAnimation(extract, true);
-		return true;
+    public boolean tryPullingFrom(Storage<ItemVariant> handler) {
+        ItemStack extract =
+                ItemHelper.extract(
+                        handler,
+                        stack -> {
+                            if (!PackageItem.isPackage(stack)) return false;
+                            String filterString = getFilterString();
+                            return filterString == null
+                                    || handler instanceof PackagerItemHandler
+                                    || !PackageItem.matchAddress(stack, filterString);
+                        },
+                        false);
+        if (extract.isEmpty()) return false;
+        startAnimation(extract, true);
+        return true;
+    }
 
-	}
+    protected Storage<ItemVariant> getAdjacentInventory(Direction side) {
+        return ItemStorage.SIDED.find(
+                this.level, this.worldPosition.relative(side), side.getOpposite());
+    }
 
-	protected Storage<ItemVariant> getAdjacentInventory(Direction side) {
-		return ItemStorage.SIDED.find(this.level, this.worldPosition.relative(side), side.getOpposite());
-	}
+    @Override
+    protected void write(CompoundTag tag, HolderLookup.Provider registries, boolean clientPacket) {
+        super.write(tag, registries, clientPacket);
+        tag.putFloat("PlacedYaw", passiveYaw);
+        if (animatedPackage != null && isAnimationInProgress()) {
+            tag.put("AnimatedPackage", animatedPackage.saveOptional(registries));
+            tag.putBoolean("Deposit", currentlyDepositing);
+        }
+        if (sendAnticipate) {
+            sendAnticipate = false;
+            tag.putBoolean("Anticipate", true);
+        }
+        if (failedLastExport) NBTHelper.putMarker(tag, "FailedLastExport");
+        if (goggles) NBTHelper.putMarker(tag, "Goggles");
+    }
 
-	@Override
-	protected void write(CompoundTag tag, HolderLookup.Provider registries, boolean clientPacket) {
-		super.write(tag, registries, clientPacket);
-		tag.putFloat("PlacedYaw", passiveYaw);
-		if (animatedPackage != null && isAnimationInProgress()) {
-			tag.put("AnimatedPackage", animatedPackage.saveOptional(registries));
-			tag.putBoolean("Deposit", currentlyDepositing);
-		}
-		if (sendAnticipate) {
-			sendAnticipate = false;
-			tag.putBoolean("Anticipate", true);
-		}
-		if (failedLastExport)
-			NBTHelper.putMarker(tag, "FailedLastExport");
-		if (goggles)
-			NBTHelper.putMarker(tag, "Goggles");
-	}
+    @Override
+    protected void read(CompoundTag tag, HolderLookup.Provider registries, boolean clientPacket) {
+        super.read(tag, registries, clientPacket);
+        passiveYaw = tag.getFloat("PlacedYaw");
+        failedLastExport = tag.getBoolean("FailedLastExport");
+        goggles = tag.getBoolean("Goggles");
+        if (!clientPacket) animatedPackage = null;
+        if (tag.contains("AnimatedPackage")) {
+            deferAnimationInward = tag.getBoolean("Deposit");
+            deferAnimationStart =
+                    ItemStack.parseOptional(registries, tag.getCompound("AnimatedPackage"));
+        }
+        if (clientPacket && tag.contains("Anticipate")) anticipate();
+    }
 
-	@Override
-	protected void read(CompoundTag tag, HolderLookup.Provider registries, boolean clientPacket) {
-		super.read(tag, registries, clientPacket);
-		passiveYaw = tag.getFloat("PlacedYaw");
-		failedLastExport = tag.getBoolean("FailedLastExport");
-		goggles = tag.getBoolean("Goggles");
-		if (!clientPacket)
-			animatedPackage = null;
-		if (tag.contains("AnimatedPackage")) {
-			deferAnimationInward = tag.getBoolean("Deposit");
-			deferAnimationStart = ItemStack.parseOptional(registries, tag.getCompound("AnimatedPackage"));
-		}
-		if (clientPacket && tag.contains("Anticipate"))
-			anticipate();
-	}
+    public float getYaw() {
+        if (target == null) return passiveYaw;
+        Vec3 diff =
+                target.getExactTargetLocation(this, level, worldPosition)
+                        .subtract(Vec3.atCenterOf(worldPosition));
+        return (float) (Mth.atan2(diff.x, diff.z) * Mth.RAD_TO_DEG) + 180;
+    }
 
-	public float getYaw() {
-		if (target == null)
-			return passiveYaw;
-		Vec3 diff = target.getExactTargetLocation(this, level, worldPosition)
-			.subtract(Vec3.atCenterOf(worldPosition));
-		return (float) (Mth.atan2(diff.x, diff.z) * Mth.RAD_TO_DEG) + 180;
-	}
+    @Override
+    public boolean addToTooltip(List<Component> tooltip, boolean isPlayerSneaking) {
+        boolean superTip = IHaveHoveringInformation.super.addToTooltip(tooltip, isPlayerSneaking);
+        if (!failedLastExport) return superTip;
+        TooltipHelper.addHint(tooltip, "hint.blocked_frogport");
+        return true;
+    }
 
-	@Override
-	public boolean addToTooltip(List<Component> tooltip, boolean isPlayerSneaking) {
-		boolean superTip = IHaveHoveringInformation.super.addToTooltip(tooltip, isPlayerSneaking);
-		if (!failedLastExport)
-			return superTip;
-		TooltipHelper.addHint(tooltip, "hint.blocked_frogport");
-		return true;
-	}
+    @Override
+    protected void onOpenedManually() {
+        if (level.isClientSide()) sounds.open(level, worldPosition);
+    }
 
-	@Override
-	protected void onOpenedManually() {
-		if (level.isClientSide())
-			sounds.open(level, worldPosition);
-	}
+    @Override
+    public ItemInteractionResult use(Player player) {
+        if (player == null) return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
 
-	@Override
-	public ItemInteractionResult use(Player player) {
-		if (player == null)
-			return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
+        ItemStack mainHandItem = player.getMainHandItem();
+        if (!goggles && AllItems.GOGGLES.isIn(mainHandItem)) {
+            goggles = true;
+            if (!level.isClientSide()) {
+                notifyUpdate();
+                level.playSound(
+                        null,
+                        worldPosition,
+                        SoundEvents.ARMOR_EQUIP_GOLD.value(),
+                        SoundSource.BLOCKS,
+                        0.5f,
+                        1.0f);
+            }
+            return ItemInteractionResult.SUCCESS;
+        }
 
-		ItemStack mainHandItem = player.getMainHandItem();
-		if (!goggles && AllItems.GOGGLES.isIn(mainHandItem)) {
-			goggles = true;
-			if (!level.isClientSide()) {
-				notifyUpdate();
-				level.playSound(null, worldPosition, SoundEvents.ARMOR_EQUIP_GOLD.value(), SoundSource.BLOCKS, 0.5f, 1.0f);
-			}
-			return ItemInteractionResult.SUCCESS;
-		}
-
-		return super.use(player);
-	}
-
+        return super.use(player);
+    }
 }

@@ -6,6 +6,5 @@ package com.simibubi.create.compat.trainmap;
  */
 public class TrainMapEvents {
 
-	public static void init() {
-	}
+    public static void init() {}
 }

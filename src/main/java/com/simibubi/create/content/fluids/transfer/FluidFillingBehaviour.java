@@ -1,23 +1,16 @@
 package com.simibubi.create.content.fluids.transfer;
 
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Objects;
-import java.util.Set;
-
-import javax.annotation.Nullable;
-
 import com.simibubi.create.foundation.advancement.AllAdvancements;
 import com.simibubi.create.foundation.blockEntity.SmartBlockEntity;
 import com.simibubi.create.foundation.blockEntity.behaviour.BehaviourType;
 import com.simibubi.create.foundation.fluid.FluidHelper;
 import com.simibubi.create.infrastructure.config.AllConfigs;
-
 import com.simibubi.create.infrastructure.fabric.transfer.TransactionSuccessCallback;
 
 import net.createmod.catnip.data.Iterate;
 import net.createmod.catnip.math.BBHelper;
+import net.fabricmc.fabric.api.transfer.v1.transaction.TransactionContext;
+import net.fabricmc.fabric.api.transfer.v1.transaction.base.SnapshotParticipant;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.sounds.SoundEvents;
@@ -43,315 +36,351 @@ import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.ticks.LevelTickAccess;
 import net.minecraft.world.ticks.LevelTicks;
 
-import net.fabricmc.fabric.api.transfer.v1.transaction.TransactionContext;
-import net.fabricmc.fabric.api.transfer.v1.transaction.base.SnapshotParticipant;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Objects;
+import java.util.Set;
 
-import io.github.fabricators_of_create.porting_lib.transfer.callbacks.TransactionCallback;
+import javax.annotation.Nullable;
 
 public class FluidFillingBehaviour extends FluidManipulationBehaviour {
 
-	public static final BehaviourType<FluidFillingBehaviour> TYPE = new BehaviourType<>();
+    public static final BehaviourType<FluidFillingBehaviour> TYPE = new BehaviourType<>();
 
-	// fabric: we need to save the queue for snapshots, so it must be a copyable type.
-	SortedArraySet<BlockPosEntry> queue;
+    // fabric: we need to save the queue for snapshots, so it must be a copyable type.
+    SortedArraySet<BlockPosEntry> queue;
 
-	List<BlockPosEntry> infinityCheckFrontier;
-	Set<BlockPos> infinityCheckVisited;
+    List<BlockPosEntry> infinityCheckFrontier;
+    Set<BlockPos> infinityCheckVisited;
 
-	SnapshotParticipant<Data> snapshotParticipant = new SnapshotParticipant<>() {
-		@Override
-		protected Data createSnapshot() {
-			return new Data(new HashSet<>(visited), copySet(queue), counterpartActed);
-		}
+    SnapshotParticipant<Data> snapshotParticipant =
+            new SnapshotParticipant<>() {
+                @Override
+                protected Data createSnapshot() {
+                    return new Data(new HashSet<>(visited), copySet(queue), counterpartActed);
+                }
 
-		@Override
-		protected void readSnapshot(Data snapshot) {
-			visited = snapshot.visited;
-			queue = snapshot.queue;
-			counterpartActed = snapshot.counterpartActed;
-		}
-	};
+                @Override
+                protected void readSnapshot(Data snapshot) {
+                    visited = snapshot.visited;
+                    queue = snapshot.queue;
+                    counterpartActed = snapshot.counterpartActed;
+                }
+            };
 
-	@Override
-	protected SnapshotParticipant<?> snapshotParticipant() {
-		return snapshotParticipant;
-	}
+    @Override
+    protected SnapshotParticipant<?> snapshotParticipant() {
+        return snapshotParticipant;
+    }
 
-	record Data(Set<BlockPos> visited, SortedArraySet<BlockPosEntry> queue, boolean counterpartActed) {
-	}
+    record Data(
+            Set<BlockPos> visited, SortedArraySet<BlockPosEntry> queue, boolean counterpartActed) {}
 
-	public FluidFillingBehaviour(SmartBlockEntity be) {
-		super(be);
-		queue = SortedArraySet.create((p, p2) -> -comparePositions(p, p2));
-		revalidateIn = 1;
-		infinityCheckFrontier = new ArrayList<>();
-		infinityCheckVisited = new HashSet<>();
-	}
+    public FluidFillingBehaviour(SmartBlockEntity be) {
+        super(be);
+        queue = SortedArraySet.create((p, p2) -> -comparePositions(p, p2));
+        revalidateIn = 1;
+        infinityCheckFrontier = new ArrayList<>();
+        infinityCheckVisited = new HashSet<>();
+    }
 
-	@Override
-	public void tick() {
-		super.tick();
-		if (!infinityCheckFrontier.isEmpty() && rootPos != null) {
-			Fluid fluid = getWorld().getFluidState(rootPos)
-				.getType();
-			if (fluid != Fluids.EMPTY)
-				continueValidation(fluid);
-		}
-		if (revalidateIn > 0)
-			revalidateIn--;
-	}
+    @Override
+    public void tick() {
+        super.tick();
+        if (!infinityCheckFrontier.isEmpty() && rootPos != null) {
+            Fluid fluid = getWorld().getFluidState(rootPos).getType();
+            if (fluid != Fluids.EMPTY) continueValidation(fluid);
+        }
+        if (revalidateIn > 0) revalidateIn--;
+    }
 
-	protected void continueValidation(Fluid fluid) {
-		try {
-			search(fluid, infinityCheckFrontier, infinityCheckVisited,
-				(p, d) -> infinityCheckFrontier.add(new BlockPosEntry(p, d)), true);
-		} catch (ChunkNotLoadedException e) {
-			infinityCheckFrontier.clear();
-			infinityCheckVisited.clear();
-			setLongValidationTimer();
-			return;
-		}
+    protected void continueValidation(Fluid fluid) {
+        try {
+            search(
+                    fluid,
+                    infinityCheckFrontier,
+                    infinityCheckVisited,
+                    (p, d) -> infinityCheckFrontier.add(new BlockPosEntry(p, d)),
+                    true);
+        } catch (ChunkNotLoadedException e) {
+            infinityCheckFrontier.clear();
+            infinityCheckVisited.clear();
+            setLongValidationTimer();
+            return;
+        }
 
-		int maxBlocks = maxBlocks();
+        int maxBlocks = maxBlocks();
 
-		if (infinityCheckVisited.size() > maxBlocks && maxBlocks != -1 && !fillInfinite()) {
-			if (!infinite) {
-				reset(null);
-				infinite = true;
-				blockEntity.sendData();
-			}
-			infinityCheckFrontier.clear();
-			setLongValidationTimer();
-			return;
-		}
+        if (infinityCheckVisited.size() > maxBlocks && maxBlocks != -1 && !fillInfinite()) {
+            if (!infinite) {
+                reset(null);
+                infinite = true;
+                blockEntity.sendData();
+            }
+            infinityCheckFrontier.clear();
+            setLongValidationTimer();
+            return;
+        }
 
-		if (!infinityCheckFrontier.isEmpty())
-			return;
-		if (infinite) {
-			reset(null);
-			return;
-		}
+        if (!infinityCheckFrontier.isEmpty()) return;
+        if (infinite) {
+            reset(null);
+            return;
+        }
 
-		infinityCheckVisited.clear();
-	}
+        infinityCheckVisited.clear();
+    }
 
-	public boolean tryDeposit(Fluid fluid, BlockPos root, TransactionContext ctx) {
-		if (!Objects.equals(root, rootPos)) {
-			reset(ctx);
-			rootPos = root;
-			BlockPosEntry e = new BlockPosEntry(root, 0);
-			queue.add(e);
-			affectedArea = BoundingBox.fromCorners(rootPos, rootPos);
-			return false;
-		}
+    public boolean tryDeposit(Fluid fluid, BlockPos root, TransactionContext ctx) {
+        if (!Objects.equals(root, rootPos)) {
+            reset(ctx);
+            rootPos = root;
+            BlockPosEntry e = new BlockPosEntry(root, 0);
+            queue.add(e);
+            affectedArea = BoundingBox.fromCorners(rootPos, rootPos);
+            return false;
+        }
 
-		if (counterpartActed) {
-			counterpartActed = false;
-			softReset(root);
-			return false;
-		}
+        if (counterpartActed) {
+            counterpartActed = false;
+            softReset(root);
+            return false;
+        }
 
-		if (affectedArea == null)
-			affectedArea = BoundingBox.fromCorners(root, root);
+        if (affectedArea == null) affectedArea = BoundingBox.fromCorners(root, root);
 
-		if (revalidateIn == 0) {
-			visited.clear();
-			infinityCheckFrontier.clear();
-			infinityCheckVisited.clear();
-			infinityCheckFrontier.add(new BlockPosEntry(root, 0));
-			setValidationTimer();
-			softReset(root);
-		}
+        if (revalidateIn == 0) {
+            visited.clear();
+            infinityCheckFrontier.clear();
+            infinityCheckVisited.clear();
+            infinityCheckFrontier.add(new BlockPosEntry(root, 0));
+            setValidationTimer();
+            softReset(root);
+        }
 
-		Level world = getWorld();
-		int maxRange = maxRange();
-		int maxRangeSq = maxRange * maxRange;
-		int maxBlocks = maxBlocks();
-		boolean evaporate = world.dimensionType()
-			.ultraWarm() && FluidHelper.isTag(fluid, FluidTags.WATER);
-		boolean canPlaceSources = AllConfigs.server().fluids.fluidFillPlaceFluidSourceBlocks.get();
+        Level world = getWorld();
+        int maxRange = maxRange();
+        int maxRangeSq = maxRange * maxRange;
+        int maxBlocks = maxBlocks();
+        boolean evaporate =
+                world.dimensionType().ultraWarm() && FluidHelper.isTag(fluid, FluidTags.WATER);
+        boolean canPlaceSources = AllConfigs.server().fluids.fluidFillPlaceFluidSourceBlocks.get();
 
-		if ((!fillInfinite() && infinite) || evaporate || !canPlaceSources) {
-			FluidState fluidState = world.getFluidState(rootPos);
-			boolean equivalentTo = fluidState.getType()
-				.isSame(fluid);
-			if (!equivalentTo && !evaporate && canPlaceSources)
-				return false;
+        if ((!fillInfinite() && infinite) || evaporate || !canPlaceSources) {
+            FluidState fluidState = world.getFluidState(rootPos);
+            boolean equivalentTo = fluidState.getType().isSame(fluid);
+            if (!equivalentTo && !evaporate && canPlaceSources) return false;
 
-			TransactionSuccessCallback.register(ctx, () -> {
-				playEffect(world, root, fluid, false);
-				if (evaporate) {
-					int i = root.getX();
-					int j = root.getY();
-					int k = root.getZ();
-					world.playSound(null, i, j, k, SoundEvents.FIRE_EXTINGUISH, SoundSource.BLOCKS, 0.5F,
-							2.6F + (world.random.nextFloat() - world.random.nextFloat()) * 0.8F);
-				} else if (!canPlaceSources)
-					blockEntity.award(AllAdvancements.HOSE_PULLEY);
-			});
-			return true;
-		}
+            TransactionSuccessCallback.register(
+                    ctx,
+                    () -> {
+                        playEffect(world, root, fluid, false);
+                        if (evaporate) {
+                            int i = root.getX();
+                            int j = root.getY();
+                            int k = root.getZ();
+                            world.playSound(
+                                    null,
+                                    i,
+                                    j,
+                                    k,
+                                    SoundEvents.FIRE_EXTINGUISH,
+                                    SoundSource.BLOCKS,
+                                    0.5F,
+                                    2.6F
+                                            + (world.random.nextFloat() - world.random.nextFloat())
+                                                    * 0.8F);
+                        } else if (!canPlaceSources) blockEntity.award(AllAdvancements.HOSE_PULLEY);
+                    });
+            return true;
+        }
 
-		boolean success = false;
-		for (int i = 0; !success && !queue.isEmpty() && i < searchedPerTick; i++) {
-			BlockPosEntry entry = queue.first();
-			BlockPos currentPos = entry.pos();
+        boolean success = false;
+        for (int i = 0; !success && !queue.isEmpty() && i < searchedPerTick; i++) {
+            BlockPosEntry entry = queue.first();
+            BlockPos currentPos = entry.pos();
 
-			if (visited.contains(currentPos)) {
-				dequeue(queue);
-				continue;
-			}
+            if (visited.contains(currentPos)) {
+                dequeue(queue);
+                continue;
+            }
 
-			snapshotParticipant.updateSnapshots(ctx);
-			visited.add(currentPos);
+            snapshotParticipant.updateSnapshots(ctx);
+            visited.add(currentPos);
 
-			if (visited.size() >= maxBlocks && maxBlocks != -1) {
-				infinite = true;
-				if (!fillInfinite()) {
-					visited.clear();
-					queue.clear();
-				return false;}
-			}
+            if (visited.size() >= maxBlocks && maxBlocks != -1) {
+                infinite = true;
+                if (!fillInfinite()) {
+                    visited.clear();
+                    queue.clear();
+                    return false;
+                }
+            }
 
-			SpaceType spaceType = getAtPos(world, currentPos, fluid);
-			if (spaceType == SpaceType.BLOCKING)
-				continue;
-			if (spaceType == SpaceType.FILLABLE) {
-				success = true;
-				BlockState blockState = world.getBlockState(currentPos);
+            SpaceType spaceType = getAtPos(world, currentPos, fluid);
+            if (spaceType == SpaceType.BLOCKING) continue;
+            if (spaceType == SpaceType.FILLABLE) {
+                success = true;
+                BlockState blockState = world.getBlockState(currentPos);
 
-				if (!blockEntity.isVirtual())
-					world.port_lib$updateSnapshots(ctx);
+                if (!blockEntity.isVirtual()) world.port_lib$updateSnapshots(ctx);
 
-				new SnapshotParticipant<Unit>() { // can't be a typical TransactionCallback because ordering refuses to cooperate
-					@Override protected Unit createSnapshot() { return Unit.INSTANCE; }
-					@Override protected void readSnapshot(Unit snapshot) {}
+                new SnapshotParticipant<
+                        Unit>() { // can't be a typical TransactionCallback because ordering refuses
+                    // to cooperate
+                    @Override
+                    protected Unit createSnapshot() {
+                        return Unit.INSTANCE;
+                    }
 
-					@Override
-					protected void onFinalCommit() {
-						playEffect(world, currentPos, fluid, false);
-						LevelTickAccess<Fluid> pendingFluidTicks = world.getFluidTicks();
-						if (pendingFluidTicks instanceof LevelTicks<Fluid> serverTickList) {
-							serverTickList.clearArea(new BoundingBox(currentPos));
-						}
+                    @Override
+                    protected void readSnapshot(Unit snapshot) {}
 
-						affectedArea = BBHelper.encapsulate(affectedArea, currentPos);
-					}
-				}.updateSnapshots(ctx);
+                    @Override
+                    protected void onFinalCommit() {
+                        playEffect(world, currentPos, fluid, false);
+                        LevelTickAccess<Fluid> pendingFluidTicks = world.getFluidTicks();
+                        if (pendingFluidTicks instanceof LevelTicks<Fluid> serverTickList) {
+                            serverTickList.clearArea(new BoundingBox(currentPos));
+                        }
 
-				if (blockState.hasProperty(BlockStateProperties.WATERLOGGED) && fluid.isSame(Fluids.WATER)) {
-					if (!blockEntity.isVirtual())
-						world.setBlock(currentPos,
-								updatePostWaterlogging(blockState.setValue(BlockStateProperties.WATERLOGGED, true)),
-								2 | 16);
-				} else {
-					replaceBlock(world, currentPos, blockState, ctx);
-					if (!blockEntity.isVirtual())
-						world.setBlock(currentPos, FluidHelper.convertToStill(fluid)
-								.defaultFluidState()
-								.createLegacyBlock(), 2 | 16);
-				}
-			}
+                        affectedArea = BBHelper.encapsulate(affectedArea, currentPos);
+                    }
+                }.updateSnapshots(ctx);
 
-			visited.add(currentPos);
-			dequeue(queue);
+                if (blockState.hasProperty(BlockStateProperties.WATERLOGGED)
+                        && fluid.isSame(Fluids.WATER)) {
+                    if (!blockEntity.isVirtual())
+                        world.setBlock(
+                                currentPos,
+                                updatePostWaterlogging(
+                                        blockState.setValue(
+                                                BlockStateProperties.WATERLOGGED, true)),
+                                2 | 16);
+                } else {
+                    replaceBlock(world, currentPos, blockState, ctx);
+                    if (!blockEntity.isVirtual())
+                        world.setBlock(
+                                currentPos,
+                                FluidHelper.convertToStill(fluid)
+                                        .defaultFluidState()
+                                        .createLegacyBlock(),
+                                2 | 16);
+                }
+            }
 
-			for (Direction side : Iterate.directions) {
-				if (side == Direction.UP)
-					continue;
+            visited.add(currentPos);
+            dequeue(queue);
 
-				BlockPos offsetPos = currentPos.relative(side);
-				if (visited.contains(offsetPos))
-					continue;
-				if (offsetPos.distSqr(rootPos) > maxRangeSq)
-					continue;
+            for (Direction side : Iterate.directions) {
+                if (side == Direction.UP) continue;
 
-				SpaceType nextSpaceType = getAtPos(world, offsetPos, fluid);
-				if (nextSpaceType != SpaceType.BLOCKING)
-					queue.add(new BlockPosEntry(offsetPos, entry.distance() + 1));
-			}
-		}
+                BlockPos offsetPos = currentPos.relative(side);
+                if (visited.contains(offsetPos)) continue;
+                if (offsetPos.distSqr(rootPos) > maxRangeSq) continue;
 
-		if (success)
-			TransactionSuccessCallback.register(ctx, () -> blockEntity.award(AllAdvancements.HOSE_PULLEY));
-		return success;
-	}
+                SpaceType nextSpaceType = getAtPos(world, offsetPos, fluid);
+                if (nextSpaceType != SpaceType.BLOCKING)
+                    queue.add(new BlockPosEntry(offsetPos, entry.distance() + 1));
+            }
+        }
 
-	protected void softReset(BlockPos root) {
-		visited.clear();
-		queue.clear();
-		queue.add(new BlockPosEntry(root, 0));
-		infinite = false;
-		setValidationTimer();
-		blockEntity.sendData();
-	}
+        if (success)
+            TransactionSuccessCallback.register(
+                    ctx, () -> blockEntity.award(AllAdvancements.HOSE_PULLEY));
+        return success;
+    }
 
-	enum SpaceType {
-		FILLABLE, FILLED, BLOCKING
-	}
+    protected void softReset(BlockPos root) {
+        visited.clear();
+        queue.clear();
+        queue.add(new BlockPosEntry(root, 0));
+        infinite = false;
+        setValidationTimer();
+        blockEntity.sendData();
+    }
 
-	protected SpaceType getAtPos(Level world, BlockPos pos, Fluid toFill) {
-		BlockState blockState = world.getBlockState(pos);
-		FluidState fluidState = blockState.getFluidState();
+    enum SpaceType {
+        FILLABLE,
+        FILLED,
+        BLOCKING
+    }
 
-		if (blockState.hasProperty(BlockStateProperties.WATERLOGGED))
-			return toFill.isSame(Fluids.WATER)
-				? blockState.getValue(BlockStateProperties.WATERLOGGED) ? SpaceType.FILLED : SpaceType.FILLABLE
-				: SpaceType.BLOCKING;
+    protected SpaceType getAtPos(Level world, BlockPos pos, Fluid toFill) {
+        BlockState blockState = world.getBlockState(pos);
+        FluidState fluidState = blockState.getFluidState();
 
-		if (blockState.getBlock() instanceof LiquidBlock)
-			return blockState.getValue(LiquidBlock.LEVEL) == 0
-				? toFill.isSame(fluidState.getType()) ? SpaceType.FILLED : SpaceType.BLOCKING
-				: SpaceType.FILLABLE;
+        if (blockState.hasProperty(BlockStateProperties.WATERLOGGED))
+            return toFill.isSame(Fluids.WATER)
+                    ? blockState.getValue(BlockStateProperties.WATERLOGGED)
+                            ? SpaceType.FILLED
+                            : SpaceType.FILLABLE
+                    : SpaceType.BLOCKING;
 
-		if (fluidState.getType() != Fluids.EMPTY
-			&& blockState.getCollisionShape(getWorld(), pos, CollisionContext.empty())
-			.isEmpty())
-			return toFill.isSame(fluidState.getType()) ? SpaceType.FILLED : SpaceType.BLOCKING;
+        if (blockState.getBlock() instanceof LiquidBlock)
+            return blockState.getValue(LiquidBlock.LEVEL) == 0
+                    ? toFill.isSame(fluidState.getType()) ? SpaceType.FILLED : SpaceType.BLOCKING
+                    : SpaceType.FILLABLE;
 
-		return canBeReplacedByFluid(world, pos, blockState) ? SpaceType.FILLABLE : SpaceType.BLOCKING;
-	}
+        if (fluidState.getType() != Fluids.EMPTY
+                && blockState
+                        .getCollisionShape(getWorld(), pos, CollisionContext.empty())
+                        .isEmpty())
+            return toFill.isSame(fluidState.getType()) ? SpaceType.FILLED : SpaceType.BLOCKING;
 
-	protected void replaceBlock(Level world, BlockPos pos, BlockState state, TransactionContext ctx) {
-		BlockEntity blockEntity = state.hasBlockEntity() ? world.getBlockEntity(pos) : null;
-		TransactionSuccessCallback.register(ctx, () -> {
-			Block.dropResources(state, world, pos, blockEntity);
-		});
-	}
+        return canBeReplacedByFluid(world, pos, blockState)
+                ? SpaceType.FILLABLE
+                : SpaceType.BLOCKING;
+    }
 
-	// From FlowingFluidBlock#isBlocked
-	protected boolean canBeReplacedByFluid(BlockGetter world, BlockPos pos, BlockState pState) {
-		Block block = pState.getBlock();
-		if (!(block instanceof DoorBlock) && !pState.is(BlockTags.ALL_SIGNS) && !pState.is(Blocks.LADDER)
-			&& !pState.is(Blocks.SUGAR_CANE) && !pState.is(Blocks.BUBBLE_COLUMN)) {
-			if (!pState.is(Blocks.NETHER_PORTAL) && !pState.is(Blocks.END_PORTAL) && !pState.is(Blocks.END_GATEWAY)
-				&& !pState.is(Blocks.STRUCTURE_VOID)) {
-				return !pState.blocksMotion();
-			} else {
-				return false;
-			}
-		} else {
-			return false;
-		}
-	}
+    protected void replaceBlock(
+            Level world, BlockPos pos, BlockState state, TransactionContext ctx) {
+        BlockEntity blockEntity = state.hasBlockEntity() ? world.getBlockEntity(pos) : null;
+        TransactionSuccessCallback.register(
+                ctx,
+                () -> {
+                    Block.dropResources(state, world, pos, blockEntity);
+                });
+    }
 
-	protected BlockState updatePostWaterlogging(BlockState state) {
-		if (state.hasProperty(BlockStateProperties.LIT))
-			state = state.setValue(BlockStateProperties.LIT, false);
-		return state;
-	}
+    // From FlowingFluidBlock#isBlocked
+    protected boolean canBeReplacedByFluid(BlockGetter world, BlockPos pos, BlockState pState) {
+        Block block = pState.getBlock();
+        if (!(block instanceof DoorBlock)
+                && !pState.is(BlockTags.ALL_SIGNS)
+                && !pState.is(Blocks.LADDER)
+                && !pState.is(Blocks.SUGAR_CANE)
+                && !pState.is(Blocks.BUBBLE_COLUMN)) {
+            if (!pState.is(Blocks.NETHER_PORTAL)
+                    && !pState.is(Blocks.END_PORTAL)
+                    && !pState.is(Blocks.END_GATEWAY)
+                    && !pState.is(Blocks.STRUCTURE_VOID)) {
+                return !pState.blocksMotion();
+            } else {
+                return false;
+            }
+        } else {
+            return false;
+        }
+    }
 
-	@Override
-	public void reset(@Nullable TransactionContext ctx) {
-		super.reset(ctx);
-		queue.clear();
-		infinityCheckFrontier.clear();
-		infinityCheckVisited.clear();
-	}
+    protected BlockState updatePostWaterlogging(BlockState state) {
+        if (state.hasProperty(BlockStateProperties.LIT))
+            state = state.setValue(BlockStateProperties.LIT, false);
+        return state;
+    }
 
-	@Override
-	public BehaviourType<?> getType() {
-		return TYPE;
-	}
+    @Override
+    public void reset(@Nullable TransactionContext ctx) {
+        super.reset(ctx);
+        queue.clear();
+        infinityCheckFrontier.clear();
+        infinityCheckVisited.clear();
+    }
 
+    @Override
+    public BehaviourType<?> getType() {
+        return TYPE;
+    }
 }

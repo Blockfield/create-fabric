@@ -1,8 +1,5 @@
 package com.simibubi.create.content.kinetics.crusher;
 
-import java.util.Collection;
-import java.util.List;
-
 import com.simibubi.create.AllDamageTypes;
 import com.simibubi.create.content.kinetics.base.KineticBlockEntity;
 import com.simibubi.create.foundation.advancement.AllAdvancements;
@@ -19,49 +16,56 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
+import java.util.Collection;
+import java.util.List;
+
 public class CrushingWheelBlockEntity extends KineticBlockEntity {
-	public CrushingWheelBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state) {
-		super(type, pos, state);
-		setLazyTickRate(20);
-	}
+    public CrushingWheelBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state) {
+        super(type, pos, state);
+        setLazyTickRate(20);
+    }
 
-	@Override
-	public void addBehaviours(List<BlockEntityBehaviour> behaviours) {
-		super.addBehaviours(behaviours);
-		registerAwardables(behaviours, AllAdvancements.CRUSHING_WHEEL, AllAdvancements.CRUSHER_MAXED);
-	}
+    @Override
+    public void addBehaviours(List<BlockEntityBehaviour> behaviours) {
+        super.addBehaviours(behaviours);
+        registerAwardables(
+                behaviours, AllAdvancements.CRUSHING_WHEEL, AllAdvancements.CRUSHER_MAXED);
+    }
 
-	@Override
-	public void onSpeedChanged(float prevSpeed) {
-		super.onSpeedChanged(prevSpeed);
-		fixControllers();
-	}
+    @Override
+    public void onSpeedChanged(float prevSpeed) {
+        super.onSpeedChanged(prevSpeed);
+        fixControllers();
+    }
 
-	public void fixControllers() {
-		for (Direction d : Iterate.directions)
-			((CrushingWheelBlock) getBlockState().getBlock()).updateControllers(getBlockState(), getLevel(), getBlockPos(),
-				d);
-	}
+    public void fixControllers() {
+        for (Direction d : Iterate.directions)
+            ((CrushingWheelBlock) getBlockState().getBlock())
+                    .updateControllers(getBlockState(), getLevel(), getBlockPos(), d);
+    }
 
-	@Override
-	protected AABB createRenderBoundingBox() {
-		return new AABB(worldPosition).inflate(1);
-	}
+    @Override
+    protected AABB createRenderBoundingBox() {
+        return new AABB(worldPosition).inflate(1);
+    }
 
-	@Override
-	public void lazyTick() {
-		super.lazyTick();
-		fixControllers();
-	}
+    @Override
+    public void lazyTick() {
+        super.lazyTick();
+        fixControllers();
+    }
 
-	public static boolean handleCrushedMobDrops(LivingEntity target, DamageSource damageSource, Collection<ItemEntity> drops, int lootingLevel, boolean recentlyHit) {
-		if (damageSource == null || !damageSource.is(AllDamageTypes.CRUSH))
-			return false;
-		Vec3 outSpeed = Vec3.ZERO;
-		for (ItemEntity outputItem : drops) {
-			outputItem.setDeltaMovement(outSpeed);
-		}
-		return false;
-	}
-
+    public static boolean handleCrushedMobDrops(
+            LivingEntity target,
+            DamageSource damageSource,
+            Collection<ItemEntity> drops,
+            int lootingLevel,
+            boolean recentlyHit) {
+        if (damageSource == null || !damageSource.is(AllDamageTypes.CRUSH)) return false;
+        Vec3 outSpeed = Vec3.ZERO;
+        for (ItemEntity outputItem : drops) {
+            outputItem.setDeltaMovement(outSpeed);
+        }
+        return false;
+    }
 }

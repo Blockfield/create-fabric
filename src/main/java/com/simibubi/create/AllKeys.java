@@ -1,112 +1,99 @@
 package com.simibubi.create;
 
-import java.util.function.BiConsumer;
-
-import org.lwjgl.glfw.GLFW;
-
 import com.mojang.blaze3d.platform.InputConstants;
 
+import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 
-import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
+import org.lwjgl.glfw.GLFW;
+
+import java.util.function.BiConsumer;
 
 public enum AllKeys {
+    TOOL_MENU("toolmenu", GLFW.GLFW_KEY_LEFT_ALT, "Focus Schematic Overlay"),
+    ACTIVATE_TOOL(GLFW.GLFW_KEY_LEFT_CONTROL),
+    TOOLBELT("toolbelt", GLFW.GLFW_KEY_LEFT_ALT, "Access Nearby Toolboxes"),
+    ROTATE_MENU("rotate_menu", GLFW.GLFW_KEY_UNKNOWN, "Open Block Rotation Menu"),
+    ;
 
-	TOOL_MENU("toolmenu", GLFW.GLFW_KEY_LEFT_ALT, "Focus Schematic Overlay"),
-	ACTIVATE_TOOL(GLFW.GLFW_KEY_LEFT_CONTROL),
-	TOOLBELT("toolbelt", GLFW.GLFW_KEY_LEFT_ALT, "Access Nearby Toolboxes"),
-	ROTATE_MENU("rotate_menu", GLFW.GLFW_KEY_UNKNOWN, "Open Block Rotation Menu"),
+    private KeyMapping keybind;
+    private final String description;
+    private final String translation;
+    private final int key;
+    private final boolean modifiable;
 
-	;
+    AllKeys(int defaultKey) {
+        this("", defaultKey, "");
+    }
 
-	private KeyMapping keybind;
-	private final String description;
-	private final String translation;
-	private final int key;
-	private final boolean modifiable;
+    AllKeys(String description, int defaultKey, String translation) {
+        this.description = Create.ID + ".keyinfo." + description;
+        this.key = defaultKey;
+        this.modifiable = !description.isEmpty();
+        this.translation = translation;
+    }
 
-	AllKeys(int defaultKey) {
-		this("", defaultKey, "");
-	}
+    public static void provideLang(BiConsumer<String, String> consumer) {
+        for (AllKeys key : values())
+            if (key.modifiable) consumer.accept(key.description, key.translation);
+    }
 
-	AllKeys(String description, int defaultKey, String translation) {
-		this.description = Create.ID + ".keyinfo." + description;
-		this.key = defaultKey;
-		this.modifiable = !description.isEmpty();
-		this.translation = translation;
-	}
+    public static void register() {
+        for (AllKeys key : values()) {
+            if (!key.modifiable) continue;
+            key.keybind = new KeyMapping(key.description, key.key, Create.NAME);
+            KeyBindingHelper.registerKeyBinding(key.keybind);
+        }
+    }
 
-	public static void provideLang(BiConsumer<String, String> consumer) {
-		for (AllKeys key : values())
-			if (key.modifiable)
-				consumer.accept(key.description, key.translation);
-	}
+    // fabric: sometimes after opening the toolbox menu, alt gets stuck as pressed until a screen is
+    // opened.
+    // why is this needed? why did this only just now break? Good questions! I wish I knew.
+    public static void fixBinds() {
+        long window = Minecraft.getInstance().getWindow().getWindow();
+        for (AllKeys key : values()) {
+            if (key.keybind == null || key.keybind.isUnbound()) continue;
+            key.keybind.setDown(InputConstants.isKeyDown(window, key.getBoundCode()));
+        }
+    }
 
-	public static void register() {
-		for (AllKeys key : values()) {
-			if (!key.modifiable)
-				continue;
-			key.keybind = new KeyMapping(key.description, key.key, Create.NAME);
-			KeyBindingHelper.registerKeyBinding(key.keybind);
-		}
-	}
+    public KeyMapping getKeybind() {
+        return keybind;
+    }
 
-	// fabric: sometimes after opening the toolbox menu, alt gets stuck as pressed until a screen is opened.
-	// why is this needed? why did this only just now break? Good questions! I wish I knew.
-	public static void fixBinds() {
-		long window = Minecraft.getInstance().getWindow().getWindow();
-		for (AllKeys key : values()) {
-			if (key.keybind == null || key.keybind.isUnbound())
-				continue;
-			key.keybind.setDown(InputConstants.isKeyDown(window, key.getBoundCode()));
-		}
-	}
+    public boolean isPressed() {
+        if (!modifiable) return isKeyDown(key);
+        return keybind.isDown();
+    }
 
-	public KeyMapping getKeybind() {
-		return keybind;
-	}
+    public String getBoundKey() {
+        return keybind.getTranslatedKeyMessage().getString().toUpperCase();
+    }
 
-	public boolean isPressed() {
-		if (!modifiable)
-			return isKeyDown(key);
-		return keybind.isDown();
-	}
+    public int getBoundCode() {
+        return KeyBindingHelper.getBoundKeyOf(keybind).getValue();
+    }
 
-	public String getBoundKey() {
-		return keybind.getTranslatedKeyMessage()
-			.getString()
-			.toUpperCase();
-	}
+    public static boolean isKeyDown(int key) {
+        return InputConstants.isKeyDown(Minecraft.getInstance().getWindow().getWindow(), key);
+    }
 
-	public int getBoundCode() {
-		return KeyBindingHelper.getBoundKeyOf(keybind)
-				.getValue();
-	}
+    public static boolean isMouseButtonDown(int button) {
+        return GLFW.glfwGetMouseButton(Minecraft.getInstance().getWindow().getWindow(), button)
+                == 1;
+    }
 
-	public static boolean isKeyDown(int key) {
-		return InputConstants.isKeyDown(Minecraft.getInstance()
-			.getWindow()
-			.getWindow(), key);
-	}
+    public static boolean ctrlDown() {
+        return Screen.hasControlDown();
+    }
 
-	public static boolean isMouseButtonDown(int button) {
-		return GLFW.glfwGetMouseButton(Minecraft.getInstance()
-			.getWindow()
-			.getWindow(), button) == 1;
-	}
+    public static boolean shiftDown() {
+        return Screen.hasShiftDown();
+    }
 
-	public static boolean ctrlDown() {
-		return Screen.hasControlDown();
-	}
-
-	public static boolean shiftDown() {
-		return Screen.hasShiftDown();
-	}
-
-	public static boolean altDown() {
-		return Screen.hasAltDown();
-	}
-
+    public static boolean altDown() {
+        return Screen.hasAltDown();
+    }
 }

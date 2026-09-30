@@ -1,7 +1,5 @@
 package com.simibubi.create.content.logistics.stockTicker;
 
-import com.simibubi.create.foundation.fabric.MenuUtil;
-
 import com.mojang.serialization.MapCodec;
 import com.simibubi.create.AllBlockEntityTypes;
 import com.simibubi.create.AllPartialModels;
@@ -10,24 +8,21 @@ import com.simibubi.create.AllSoundEvents;
 import com.simibubi.create.content.equipment.wrench.IWrenchable;
 import com.simibubi.create.content.logistics.packagerLink.LogisticallyLinkedBlockItem;
 import com.simibubi.create.foundation.block.IBE;
+import com.simibubi.create.foundation.fabric.MenuUtil;
 import com.simibubi.create.foundation.utility.CreateLang;
+import com.simibubi.create.infrastructure.fabric.transfer.TransferUtil;
 
 import dev.engine_room.flywheel.lib.model.baked.PartialModel;
-
-import com.simibubi.create.infrastructure.fabric.transfer.TransferUtil;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.fabricmc.fabric.api.transfer.v1.item.ItemVariant;
 import net.fabricmc.fabric.api.transfer.v1.storage.StorageView;
-
 import net.fabricmc.fabric.api.transfer.v1.transaction.Transaction;
-
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
-import net.minecraft.world.InteractionResult;
 import net.minecraft.world.ItemInteractionResult;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
@@ -46,101 +41,113 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.VoxelShape;
 
-import net.fabricmc.api.EnvType;
-import net.fabricmc.api.Environment;
+public class StockTickerBlock extends HorizontalDirectionalBlock
+        implements IBE<StockTickerBlockEntity>, IWrenchable {
 
+    public static final MapCodec<StockTickerBlock> CODEC = simpleCodec(StockTickerBlock::new);
 
-public class StockTickerBlock extends HorizontalDirectionalBlock implements IBE<StockTickerBlockEntity>, IWrenchable {
+    public StockTickerBlock(Properties pProperties) {
+        super(pProperties);
+    }
 
-	public static final MapCodec<StockTickerBlock> CODEC = simpleCodec(StockTickerBlock::new);
+    @Override
+    public BlockState getStateForPlacement(BlockPlaceContext pContext) {
+        Direction facing = pContext.getHorizontalDirection().getOpposite();
+        boolean reverse = pContext.getPlayer() != null && pContext.getPlayer().isShiftKeyDown();
+        return super.getStateForPlacement(pContext)
+                .setValue(FACING, reverse ? facing.getOpposite() : facing);
+    }
 
-	public StockTickerBlock(Properties pProperties) {
-		super(pProperties);
-	}
+    @Override
+    protected void createBlockStateDefinition(Builder<Block, BlockState> pBuilder) {
+        super.createBlockStateDefinition(pBuilder.add(FACING));
+    }
 
-	@Override
-	public BlockState getStateForPlacement(BlockPlaceContext pContext) {
-		Direction facing = pContext.getHorizontalDirection()
-			.getOpposite();
-		boolean reverse = pContext.getPlayer() != null && pContext.getPlayer()
-			.isShiftKeyDown();
-		return super.getStateForPlacement(pContext).setValue(FACING, reverse ? facing.getOpposite() : facing);
-	}
+    @Override
+    protected ItemInteractionResult useItemOn(
+            ItemStack stack,
+            BlockState state,
+            Level level,
+            BlockPos pos,
+            Player player,
+            InteractionHand hand,
+            BlockHitResult hitResult) {
+        if (stack.getItem() instanceof LogisticallyLinkedBlockItem)
+            return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
 
-	@Override
-	protected void createBlockStateDefinition(Builder<Block, BlockState> pBuilder) {
-		super.createBlockStateDefinition(pBuilder.add(FACING));
-	}
+        return onBlockEntityUseItemOn(
+                level,
+                pos,
+                stbe -> {
+                    if (!stbe.behaviour.mayInteractMessage(player))
+                        return ItemInteractionResult.SUCCESS;
 
-	@Override
-	protected ItemInteractionResult useItemOn(ItemStack stack, BlockState state, Level level, BlockPos pos, Player player, InteractionHand hand, BlockHitResult hitResult) {
-		if (stack.getItem() instanceof LogisticallyLinkedBlockItem)
-			return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
+                    if (!level.isClientSide() && !stbe.receivedPayments.isEmpty()) {
+                        try (Transaction t = Transaction.openOuter()) {
+                            for (StorageView<ItemVariant> view :
+                                    stbe.receivedPayments.nonEmptyViews()) {
+                                ItemVariant resource = view.getResource();
+                                long extracted = view.extract(resource, view.getAmount(), t);
+                                if (extracted > 0) {
+                                    ItemStack payment =
+                                            resource.toStack(TransferUtil.truncateLong(extracted));
+                                    player.getInventory().placeItemBackInInventory(payment);
+                                }
+                            }
+                            t.commit();
+                        }
+                        AllSoundEvents.playItemPickup(player);
+                        return ItemInteractionResult.SUCCESS;
+                    }
 
-		return onBlockEntityUseItemOn(level, pos, stbe -> {
-			if (!stbe.behaviour.mayInteractMessage(player))
-				return ItemInteractionResult.SUCCESS;
+                    if (player instanceof ServerPlayer sp) {
+                        if (stbe.isKeeperPresent())
+                            MenuUtil.open(sp, stbe.new CategoryMenuProvider(), stbe.getBlockPos());
+                        else CreateLang.translate("stock_ticker.keeper_missing").sendStatus(player);
+                    }
 
-			if (!level.isClientSide() && !stbe.receivedPayments.isEmpty()) {
-				try (Transaction t = Transaction.openOuter()) {
-					for (StorageView<ItemVariant> view : stbe.receivedPayments.nonEmptyViews()) {
-						ItemVariant resource = view.getResource();
-						long extracted = view.extract(resource, view.getAmount(), t);
-						if (extracted > 0) {
-							ItemStack payment = resource.toStack(TransferUtil.truncateLong(extracted));
-							player.getInventory().placeItemBackInInventory(payment);
-						}
-					}
-					t.commit();
-				}
-				AllSoundEvents.playItemPickup(player);
-				return ItemInteractionResult.SUCCESS;
-			}
+                    return ItemInteractionResult.SUCCESS;
+                });
+    }
 
-			if (player instanceof ServerPlayer sp) {
-				if (stbe.isKeeperPresent())
-					MenuUtil.open(sp, stbe.new CategoryMenuProvider(), stbe.getBlockPos());
-				else
-					CreateLang.translate("stock_ticker.keeper_missing")
-						.sendStatus(player);
-			}
+    @Override
+    public VoxelShape getShape(
+            BlockState pState, BlockGetter pLevel, BlockPos pPos, CollisionContext pContext) {
+        return AllShapes.STOCK_TICKER;
+    }
 
-			return ItemInteractionResult.SUCCESS;
-		});
-	}
+    @Environment(EnvType.CLIENT)
+    public PartialModel getHat(LevelAccessor level, BlockPos pos, LivingEntity keeper) {
+        return AllPartialModels.LOGISTICS_HAT;
+    }
 
-	@Override
-	public VoxelShape getShape(BlockState pState, BlockGetter pLevel, BlockPos pPos, CollisionContext pContext) {
-		return AllShapes.STOCK_TICKER;
-	}
+    @Override
+    public void onRemove(
+            BlockState pState,
+            Level pLevel,
+            BlockPos pPos,
+            BlockState pNewState,
+            boolean pMovedByPiston) {
+        IBE.onRemove(pState, pLevel, pPos, pNewState);
+    }
 
-	@Environment(EnvType.CLIENT)
-	public PartialModel getHat(LevelAccessor level, BlockPos pos, LivingEntity keeper) {
-		return AllPartialModels.LOGISTICS_HAT;
-	}
+    @Override
+    public Class<StockTickerBlockEntity> getBlockEntityClass() {
+        return StockTickerBlockEntity.class;
+    }
 
-	@Override
-	public void onRemove(BlockState pState, Level pLevel, BlockPos pPos, BlockState pNewState, boolean pMovedByPiston) {
-		IBE.onRemove(pState, pLevel, pPos, pNewState);
-	}
+    @Override
+    public BlockEntityType<? extends StockTickerBlockEntity> getBlockEntityType() {
+        return AllBlockEntityTypes.STOCK_TICKER.get();
+    }
 
-	@Override
-	public Class<StockTickerBlockEntity> getBlockEntityClass() {
-		return StockTickerBlockEntity.class;
-	}
+    @Override
+    protected boolean isPathfindable(BlockState state, PathComputationType pathComputationType) {
+        return false;
+    }
 
-	@Override
-	public BlockEntityType<? extends StockTickerBlockEntity> getBlockEntityType() {
-		return AllBlockEntityTypes.STOCK_TICKER.get();
-	}
-
-	@Override
-	protected boolean isPathfindable(BlockState state, PathComputationType pathComputationType) {
-		return false;
-	}
-
-	@Override
-	protected MapCodec<? extends HorizontalDirectionalBlock> codec() {
-		return CODEC;
-	}
+    @Override
+    protected MapCodec<? extends HorizontalDirectionalBlock> codec() {
+        return CODEC;
+    }
 }

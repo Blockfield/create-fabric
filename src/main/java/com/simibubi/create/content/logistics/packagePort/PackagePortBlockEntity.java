@@ -1,10 +1,5 @@
 package com.simibubi.create.content.logistics.packagePort;
 
-import com.simibubi.create.foundation.fabric.MenuUtil;
-
-import java.util.ArrayList;
-import java.util.List;
-
 import com.simibubi.create.AllBlocks;
 import com.simibubi.create.AllDataComponents;
 import com.simibubi.create.content.equipment.clipboard.ClipboardEntry;
@@ -12,11 +7,16 @@ import com.simibubi.create.content.equipment.clipboard.ClipboardOverrides.Clipbo
 import com.simibubi.create.foundation.blockEntity.SmartBlockEntity;
 import com.simibubi.create.foundation.blockEntity.behaviour.BlockEntityBehaviour;
 import com.simibubi.create.foundation.blockEntity.behaviour.animatedContainer.AnimatedContainerBehaviour;
+import com.simibubi.create.foundation.fabric.MenuUtil;
 import com.simibubi.create.foundation.item.ItemHelper;
 import com.simibubi.create.foundation.item.SmartInventory;
 import com.simibubi.create.foundation.utility.CreateLang;
 
 import net.createmod.catnip.codecs.CatnipCodecUtils;
+import net.fabricmc.fabric.api.entity.FakePlayer;
+import net.fabricmc.fabric.api.transfer.v1.item.ItemVariant;
+import net.fabricmc.fabric.api.transfer.v1.storage.Storage;
+import net.fabricmc.fabric.api.transfer.v1.storage.base.SidedStorageBlockEntity;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
@@ -32,180 +32,174 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 
-import net.fabricmc.fabric.api.entity.FakePlayer;
-import net.fabricmc.fabric.api.transfer.v1.item.ItemVariant;
-import net.fabricmc.fabric.api.transfer.v1.storage.Storage;
-import net.fabricmc.fabric.api.transfer.v1.storage.base.SidedStorageBlockEntity;
-
 import org.jetbrains.annotations.Nullable;
 
-public abstract class PackagePortBlockEntity extends SmartBlockEntity implements MenuProvider, SidedStorageBlockEntity {
+import java.util.ArrayList;
+import java.util.List;
 
-	public boolean acceptsPackages;
-	public String addressFilter;
-	public PackagePortTarget target;
-	public SmartInventory inventory;
+public abstract class PackagePortBlockEntity extends SmartBlockEntity
+        implements MenuProvider, SidedStorageBlockEntity {
 
-	protected AnimatedContainerBehaviour<PackagePortMenu> openTracker;
+    public boolean acceptsPackages;
+    public String addressFilter;
+    public PackagePortTarget target;
+    public SmartInventory inventory;
 
-	protected final Storage<ItemVariant> exposedInventory;
+    protected AnimatedContainerBehaviour<PackagePortMenu> openTracker;
 
-	public PackagePortBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state) {
-		super(type, pos, state);
-		addressFilter = "";
-		acceptsPackages = true;
-		inventory = new SmartInventory(18, this);
-		this.exposedInventory = new PackagePortAutomationInventoryWrapper(inventory, this);
-	}
+    protected final Storage<ItemVariant> exposedInventory;
 
-	public boolean isBackedUp() {
-		for (int i = 0; i < inventory.getSlotCount(); i++)
-			if (inventory.getStackInSlot(i)
-				.isEmpty())
-				return false;
-		return true;
-	}
+    public PackagePortBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state) {
+        super(type, pos, state);
+        addressFilter = "";
+        acceptsPackages = true;
+        inventory = new SmartInventory(18, this);
+        this.exposedInventory = new PackagePortAutomationInventoryWrapper(inventory, this);
+    }
 
-	public void filterChanged() {
-		if (target != null) {
-			target.deregister(this, level, worldPosition);
-			target.register(this, level, worldPosition);
-		}
-	}
+    public boolean isBackedUp() {
+        for (int i = 0; i < inventory.getSlotCount(); i++)
+            if (inventory.getStackInSlot(i).isEmpty()) return false;
+        return true;
+    }
 
-	@Override
-	public void lazyTick() {
-		super.lazyTick();
-		if (target != null)
-			target.register(this, level, worldPosition);
-	}
+    public void filterChanged() {
+        if (target != null) {
+            target.deregister(this, level, worldPosition);
+            target.register(this, level, worldPosition);
+        }
+    }
 
-	public String getFilterString() {
-		return acceptsPackages ? addressFilter : null;
-	}
+    @Override
+    public void lazyTick() {
+        super.lazyTick();
+        if (target != null) target.register(this, level, worldPosition);
+    }
 
-	@Override
-	protected void write(CompoundTag tag, HolderLookup.Provider registries, boolean clientPacket) {
-		super.write(tag, registries, clientPacket);
-		if (target != null)
-			tag.put("Target", CatnipCodecUtils.encode(PackagePortTarget.CODEC, target).orElseThrow());
-		tag.putString("AddressFilter", addressFilter);
-		tag.putBoolean("AcceptsPackages", acceptsPackages);
-		tag.put("Inventory", inventory.serializeNBT(registries));
-	}
+    public String getFilterString() {
+        return acceptsPackages ? addressFilter : null;
+    }
 
-	@Override
-	protected void read(CompoundTag tag, HolderLookup.Provider registries, boolean clientPacket) {
-		super.read(tag, registries, clientPacket);
-		inventory.deserializeNBT(registries, tag.getCompound("Inventory"));
-		PackagePortTarget prevTarget = target;
-		target = CatnipCodecUtils.decode(PackagePortTarget.CODEC, tag.getCompound("Target")).orElse(null);
-		addressFilter = tag.getString("AddressFilter");
-		acceptsPackages = tag.getBoolean("AcceptsPackages");
-		if (clientPacket && prevTarget != target)
-			invalidateRenderBoundingBox();
-	}
+    @Override
+    protected void write(CompoundTag tag, HolderLookup.Provider registries, boolean clientPacket) {
+        super.write(tag, registries, clientPacket);
+        if (target != null)
+            tag.put(
+                    "Target",
+                    CatnipCodecUtils.encode(PackagePortTarget.CODEC, target).orElseThrow());
+        tag.putString("AddressFilter", addressFilter);
+        tag.putBoolean("AcceptsPackages", acceptsPackages);
+        tag.put("Inventory", inventory.serializeNBT(registries));
+    }
 
-	@Override
-	public Storage<ItemVariant> getItemStorage(@Nullable Direction side) {
-		return this.exposedInventory;
-	}
+    @Override
+    protected void read(CompoundTag tag, HolderLookup.Provider registries, boolean clientPacket) {
+        super.read(tag, registries, clientPacket);
+        inventory.deserializeNBT(registries, tag.getCompound("Inventory"));
+        PackagePortTarget prevTarget = target;
+        target =
+                CatnipCodecUtils.decode(PackagePortTarget.CODEC, tag.getCompound("Target"))
+                        .orElse(null);
+        addressFilter = tag.getString("AddressFilter");
+        acceptsPackages = tag.getBoolean("AcceptsPackages");
+        if (clientPacket && prevTarget != target) invalidateRenderBoundingBox();
+    }
 
-	@Override
-	public void destroy() {
-		if (target != null)
-			target.deregister(this, level, worldPosition);
-		super.destroy();
-		for (int i = 0; i < inventory.getSlotCount(); i++)
-			drop(inventory.getStackInSlot(i));
-	}
+    @Override
+    public Storage<ItemVariant> getItemStorage(@Nullable Direction side) {
+        return this.exposedInventory;
+    }
 
-	public void drop(ItemStack box) {
-		if (box.isEmpty())
-			return;
-		Block.popResource(level, worldPosition, box);
-	}
+    @Override
+    public void destroy() {
+        if (target != null) target.deregister(this, level, worldPosition);
+        super.destroy();
+        for (int i = 0; i < inventory.getSlotCount(); i++) drop(inventory.getStackInSlot(i));
+    }
 
-	@Override
-	public void addBehaviours(List<BlockEntityBehaviour> behaviours) {
-		behaviours.add(openTracker = new AnimatedContainerBehaviour<>(this, PackagePortMenu.class));
-		openTracker.onOpenChanged(this::onOpenChange);
-	}
+    public void drop(ItemStack box) {
+        if (box.isEmpty()) return;
+        Block.popResource(level, worldPosition, box);
+    }
 
-	protected abstract void onOpenChange(boolean open);
+    @Override
+    public void addBehaviours(List<BlockEntityBehaviour> behaviours) {
+        behaviours.add(openTracker = new AnimatedContainerBehaviour<>(this, PackagePortMenu.class));
+        openTracker.onOpenChanged(this::onOpenChange);
+    }
 
-	public ItemInteractionResult use(Player player) {
-		if (player == null || player.isCrouching())
-			return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
-		if (player instanceof FakePlayer)
-			return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
-		ItemStack mainHandItem = player.getMainHandItem();
-		boolean clipboard = AllBlocks.CLIPBOARD.isIn(mainHandItem);
+    protected abstract void onOpenChange(boolean open);
 
-		if (level.isClientSide) {
-			if (!clipboard)
-				onOpenedManually();
-			return ItemInteractionResult.SUCCESS;
-		}
+    public ItemInteractionResult use(Player player) {
+        if (player == null || player.isCrouching())
+            return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
+        if (player instanceof FakePlayer)
+            return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
+        ItemStack mainHandItem = player.getMainHandItem();
+        boolean clipboard = AllBlocks.CLIPBOARD.isIn(mainHandItem);
 
-		if (clipboard) {
-			addAddressToClipboard(player, mainHandItem);
-			return ItemInteractionResult.SUCCESS;
-		}
+        if (level.isClientSide) {
+            if (!clipboard) onOpenedManually();
+            return ItemInteractionResult.SUCCESS;
+        }
 
-		MenuUtil.open(player, this, worldPosition);
-		return ItemInteractionResult.SUCCESS;
-	}
+        if (clipboard) {
+            addAddressToClipboard(player, mainHandItem);
+            return ItemInteractionResult.SUCCESS;
+        }
 
-	protected void onOpenedManually() {};
+        MenuUtil.open(player, this, worldPosition);
+        return ItemInteractionResult.SUCCESS;
+    }
 
-	private void addAddressToClipboard(Player player, ItemStack mainHandItem) {
-		if (addressFilter == null || addressFilter.isBlank())
-			return;
+    protected void onOpenedManually() {}
+    ;
 
-		List<List<ClipboardEntry>> list = ClipboardEntry.readAll(mainHandItem);
-		for (List<ClipboardEntry> page : list) {
-			for (ClipboardEntry entry : page) {
-				String existing = entry.text.getString();
-				if (existing.equals("#" + addressFilter) || existing.equals("# " + addressFilter))
-					return;
-			}
-		}
+    private void addAddressToClipboard(Player player, ItemStack mainHandItem) {
+        if (addressFilter == null || addressFilter.isBlank()) return;
 
-		List<ClipboardEntry> page = null;
+        List<List<ClipboardEntry>> list = ClipboardEntry.readAll(mainHandItem);
+        for (List<ClipboardEntry> page : list) {
+            for (ClipboardEntry entry : page) {
+                String existing = entry.text.getString();
+                if (existing.equals("#" + addressFilter) || existing.equals("# " + addressFilter))
+                    return;
+            }
+        }
 
-		for (List<ClipboardEntry> freePage : list) {
-			if (freePage.size() > 11)
-				continue;
-			page = freePage;
-			break;
-		}
+        List<ClipboardEntry> page = null;
 
-		if (page == null) {
-			page = new ArrayList<>();
-			list.add(page);
-		}
+        for (List<ClipboardEntry> freePage : list) {
+            if (freePage.size() > 11) continue;
+            page = freePage;
+            break;
+        }
 
-		page.add(new ClipboardEntry(false, Component.literal("#" + addressFilter)));
-		player.displayClientMessage(CreateLang.translate("clipboard.address_added", addressFilter)
-			.component(), true);
+        if (page == null) {
+            page = new ArrayList<>();
+            list.add(page);
+        }
 
-		ClipboardEntry.saveAll(list, mainHandItem);
-		mainHandItem.set(AllDataComponents.CLIPBOARD_TYPE, ClipboardType.WRITTEN);
-	}
+        page.add(new ClipboardEntry(false, Component.literal("#" + addressFilter)));
+        player.displayClientMessage(
+                CreateLang.translate("clipboard.address_added", addressFilter).component(), true);
 
-	@Override
-	public Component getDisplayName() {
+        ClipboardEntry.saveAll(list, mainHandItem);
+        mainHandItem.set(AllDataComponents.CLIPBOARD_TYPE, ClipboardType.WRITTEN);
+    }
+
+    @Override
+    public Component getDisplayName() {
         return Component.empty();
     }
 
-	@Override
-	public AbstractContainerMenu createMenu(int pContainerId, Inventory pPlayerInventory, Player pPlayer) {
-		return PackagePortMenu.create(pContainerId, pPlayerInventory, this);
-	}
+    @Override
+    public AbstractContainerMenu createMenu(
+            int pContainerId, Inventory pPlayerInventory, Player pPlayer) {
+        return PackagePortMenu.create(pContainerId, pPlayerInventory, this);
+    }
 
-	public int getComparatorOutput() {
-		return ItemHelper.calcRedstoneFromInventory(inventory);
-	}
-
+    public int getComparatorOutput() {
+        return ItemHelper.calcRedstoneFromInventory(inventory);
+    }
 }

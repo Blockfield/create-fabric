@@ -1,6 +1,8 @@
 ------------------------------------------------------
 Create 6.0.2
-------------------------------------------------------
+---
+
+---
 
 #### Bug Fixes
 
@@ -40,9 +42,9 @@ Create 6.0.2
 - Lock Create's registrate instance behind a caller check, prevent other mods and addons from using it
 - Implement CreateRegistrateRegistrationCallback
 
-------------------------------------------------------
-Create 6.0.1
-------------------------------------------------------
+---
+
+## Create 6.0.1
 
 #### Bug Fixes
 
@@ -72,9 +74,9 @@ Create 6.0.1
 - Fixed crash when shift-clicking items in the package filter UI #7497
 - Fixed crash caused by the create menu button when loaded too early #7521
 
-------------------------------------------------------
-Create 6.0.0
-------------------------------------------------------
+---
+
+## Create 6.0.0
 
 _Now using Flywheel 1.0_
 

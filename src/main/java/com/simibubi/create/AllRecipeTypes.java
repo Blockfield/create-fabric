@@ -1,15 +1,5 @@
 package com.simibubi.create;
 
-import java.util.Optional;
-import java.util.function.Predicate;
-import java.util.function.Supplier;
-
-import net.minecraft.core.Registry;
-
-import org.jetbrains.annotations.ApiStatus.Internal;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
 import com.simibubi.create.compat.jei.ConversionRecipe;
@@ -38,6 +28,7 @@ import com.simibubi.create.foundation.recipe.IRecipeTypeInfo;
 import com.simibubi.create.foundation.recipe.ItemCopyingRecipe;
 
 import net.createmod.catnip.lang.Lang;
+import net.minecraft.core.Registry;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.StringRepresentable;
@@ -49,130 +40,155 @@ import net.minecraft.world.item.crafting.RecipeType;
 import net.minecraft.world.item.crafting.SimpleCraftingRecipeSerializer;
 import net.minecraft.world.level.Level;
 
+import org.jetbrains.annotations.ApiStatus.Internal;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+
+import java.util.Optional;
+import java.util.function.Predicate;
+import java.util.function.Supplier;
+
 public enum AllRecipeTypes implements IRecipeTypeInfo, StringRepresentable {
+    CONVERSION(ConversionRecipe::new),
+    CRUSHING(CrushingRecipe::new),
+    CUTTING(CuttingRecipe::new),
+    MILLING(MillingRecipe::new),
+    BASIN(BasinRecipe::new),
+    MIXING(MixingRecipe::new),
+    COMPACTING(CompactingRecipe::new),
+    PRESSING(PressingRecipe::new),
+    SANDPAPER_POLISHING(SandPaperPolishingRecipe::new),
+    SPLASHING(SplashingRecipe::new),
+    HAUNTING(HauntingRecipe::new),
+    DEPLOYING(DeployerApplicationRecipe::new),
+    FILLING(FillingRecipe::new),
+    EMPTYING(EmptyingRecipe::new),
+    ITEM_APPLICATION(ManualApplicationRecipe::new),
 
-	CONVERSION(ConversionRecipe::new),
-	CRUSHING(CrushingRecipe::new),
-	CUTTING(CuttingRecipe::new),
-	MILLING(MillingRecipe::new),
-	BASIN(BasinRecipe::new),
-	MIXING(MixingRecipe::new),
-	COMPACTING(CompactingRecipe::new),
-	PRESSING(PressingRecipe::new),
-	SANDPAPER_POLISHING(SandPaperPolishingRecipe::new),
-	SPLASHING(SplashingRecipe::new),
-	HAUNTING(HauntingRecipe::new),
-	DEPLOYING(DeployerApplicationRecipe::new),
-	FILLING(FillingRecipe::new),
-	EMPTYING(EmptyingRecipe::new),
-	ITEM_APPLICATION(ManualApplicationRecipe::new),
+    MECHANICAL_CRAFTING(MechanicalCraftingRecipe.Serializer::new),
+    SEQUENCED_ASSEMBLY(SequencedAssemblyRecipeSerializer::new),
 
-	MECHANICAL_CRAFTING(MechanicalCraftingRecipe.Serializer::new),
-	SEQUENCED_ASSEMBLY(SequencedAssemblyRecipeSerializer::new),
+    TOOLBOX_DYEING(
+            () -> new SimpleCraftingRecipeSerializer<>(ToolboxDyeingRecipe::new),
+            () -> RecipeType.CRAFTING,
+            false),
+    ITEM_COPYING(
+            () -> new SimpleCraftingRecipeSerializer<>(ItemCopyingRecipe::new),
+            () -> RecipeType.CRAFTING,
+            false);
 
-	TOOLBOX_DYEING(() -> new SimpleCraftingRecipeSerializer<>(ToolboxDyeingRecipe::new), () -> RecipeType.CRAFTING, false),
-	ITEM_COPYING(() -> new SimpleCraftingRecipeSerializer<>(ItemCopyingRecipe::new), () -> RecipeType.CRAFTING, false);
+    public static final Predicate<RecipeHolder<?>> CAN_BE_AUTOMATED =
+            r -> !r.id().getPath().endsWith("_manual_only");
 
-	public static final Predicate<RecipeHolder<?>> CAN_BE_AUTOMATED = r -> !r.id()
-			.getPath()
-			.endsWith("_manual_only");
+    private final ResourceLocation id;
+    private final Supplier<RecipeSerializer<?>> serializerSupplier;
+    private RecipeSerializer<?> serializerObject;
+    @Nullable private final RecipeType<?> typeObject;
 
-	private final ResourceLocation id;
-	private final Supplier<RecipeSerializer<?>> serializerSupplier;
-	private RecipeSerializer<?> serializerObject;
-	@Nullable
-	private final RecipeType<?> typeObject;
+    private boolean isProcessingRecipe;
 
-	private boolean isProcessingRecipe;
+    public static final Codec<AllRecipeTypes> CODEC =
+            StringRepresentable.fromEnum(AllRecipeTypes::values);
 
-	public static final Codec<AllRecipeTypes> CODEC = StringRepresentable.fromEnum(AllRecipeTypes::values);
+    AllRecipeTypes(
+            Supplier<RecipeSerializer<?>> serializerSupplier,
+            Supplier<RecipeType<?>> typeSupplier,
+            boolean registerType) {
+        String name = Lang.asId(name());
+        id = Create.asResource(name);
+        this.serializerSupplier = serializerSupplier;
+        if (registerType) {
+            typeObject = typeSupplier.get();
+            Registry.register(BuiltInRegistries.RECIPE_TYPE, id, typeObject);
+        } else {
+            typeObject = typeSupplier.get();
+        }
+        isProcessingRecipe = false;
+    }
 
-	AllRecipeTypes(Supplier<RecipeSerializer<?>> serializerSupplier, Supplier<RecipeType<?>> typeSupplier, boolean registerType) {
-		String name = Lang.asId(name());
-		id = Create.asResource(name);
-		this.serializerSupplier = serializerSupplier;
-		if (registerType) {
-			typeObject = typeSupplier.get();
-			Registry.register(BuiltInRegistries.RECIPE_TYPE, id, typeObject);
-		} else {
-			typeObject = typeSupplier.get();
-		}
-		isProcessingRecipe = false;
-	}
+    AllRecipeTypes(Supplier<RecipeSerializer<?>> serializerSupplier) {
+        String name = Lang.asId(name());
+        id = Create.asResource(name);
+        this.serializerSupplier = serializerSupplier;
+        typeObject = Registry.register(BuiltInRegistries.RECIPE_TYPE, id, createType(id));
+        isProcessingRecipe = false;
+    }
 
-	AllRecipeTypes(Supplier<RecipeSerializer<?>> serializerSupplier) {
-		String name = Lang.asId(name());
-		id = Create.asResource(name);
-		this.serializerSupplier = serializerSupplier;
-		typeObject = Registry.register(BuiltInRegistries.RECIPE_TYPE, id, createType(id));
-		isProcessingRecipe = false;
-	}
+    AllRecipeTypes(ProcessingRecipeFactory<?> processingFactory) {
+        this(() -> new ProcessingRecipeSerializer<>(processingFactory));
+        isProcessingRecipe = true;
+    }
 
-	AllRecipeTypes(ProcessingRecipeFactory<?> processingFactory) {
-		this(() -> new ProcessingRecipeSerializer<>(processingFactory));
-		isProcessingRecipe = true;
-	}
+    @Internal
+    public static void register() {
+        // Сериализаторы создаются здесь, а не в конструкторе enum: ProcessingRecipeSerializer
+        // читает CODEC,
+        // который инициализируется после констант. Porting Lib's ShapedRecipePattern$DataMixin
+        // already lifts
+        // vanilla's 3x3 pattern cap, so mechanical crafting recipes larger than 3x3 parse without
+        // extra work here.
+        for (AllRecipeTypes type : values()) {
+            if (type.serializerObject == null)
+                type.serializerObject =
+                        Registry.register(
+                                BuiltInRegistries.RECIPE_SERIALIZER,
+                                type.id,
+                                type.serializerSupplier.get());
+        }
+    }
 
-	@Internal
-	public static void register() {
-		// Сериализаторы создаются здесь, а не в конструкторе enum: ProcessingRecipeSerializer читает CODEC,
-		// который инициализируется после констант. Porting Lib's ShapedRecipePattern$DataMixin already lifts
-		// vanilla's 3x3 pattern cap, so mechanical crafting recipes larger than 3x3 parse without extra work here.
-		for (AllRecipeTypes type : values()) {
-			if (type.serializerObject == null)
-				type.serializerObject = Registry.register(BuiltInRegistries.RECIPE_SERIALIZER, type.id, type.serializerSupplier.get());
-		}
-	}
+    @Override
+    public ResourceLocation getId() {
+        return id;
+    }
 
-	@Override
-	public ResourceLocation getId() {
-		return id;
-	}
+    @SuppressWarnings("unchecked")
+    @Override
+    public <T extends RecipeSerializer<?>> T getSerializer() {
+        return (T) serializerObject;
+    }
 
-	@SuppressWarnings("unchecked")
-	@Override
-	public <T extends RecipeSerializer<?>> T getSerializer() {
-		return (T) serializerObject;
-	}
+    @SuppressWarnings("unchecked")
+    @Override
+    public <I extends RecipeInput, R extends Recipe<I>> RecipeType<R> getType() {
+        return (RecipeType<R>) this.typeObject;
+    }
 
-	@SuppressWarnings("unchecked")
-	@Override
-	public <I extends RecipeInput, R extends Recipe<I>> RecipeType<R> getType() {
-		return (RecipeType<R>) this.typeObject;
-	}
+    public <I extends RecipeInput, R extends Recipe<I>> Optional<RecipeHolder<R>> find(
+            I inv, Level world) {
+        return world.getRecipeManager().getRecipeFor(getType(), inv, world);
+    }
 
-	public <I extends RecipeInput, R extends Recipe<I>> Optional<RecipeHolder<R>> find(I inv, Level world) {
-		return world.getRecipeManager()
-			.getRecipeFor(getType(), inv, world);
-	}
+    public static boolean shouldIgnoreInAutomation(RecipeHolder<?> recipe) {
+        RecipeSerializer<?> serializer = recipe.value().getSerializer();
+        if (serializer != null
+                && AllTags.AllRecipeSerializerTags.AUTOMATION_IGNORE.matches(serializer))
+            return true;
+        return !CAN_BE_AUTOMATED.test(recipe);
+    }
 
-	public static boolean shouldIgnoreInAutomation(RecipeHolder<?> recipe) {
-		RecipeSerializer<?> serializer = recipe.value().getSerializer();
-		if (serializer != null && AllTags.AllRecipeSerializerTags.AUTOMATION_IGNORE.matches(serializer))
-			return true;
-		return !CAN_BE_AUTOMATED.test(recipe);
-	}
+    @Override
+    public @NotNull String getSerializedName() {
+        return id.toString();
+    }
 
-	@Override
-	public @NotNull String getSerializedName() {
-		return id.toString();
-	}
+    private static <T extends Recipe<?>> RecipeType<T> createType(ResourceLocation id) {
+        String string = id.toString();
+        return new RecipeType<T>() {
+            @Override
+            public String toString() {
+                return string;
+            }
+        };
+    }
 
-	private static <T extends Recipe<?>> RecipeType<T> createType(ResourceLocation id) {
-		String string = id.toString();
-		return new RecipeType<T>() {
-			@Override
-			public String toString() {
-				return string;
-			}
-		};
-	}
-
-	public <T extends ProcessingRecipe<?>> MapCodec<T> processingCodec() {
-		if (!isProcessingRecipe)
-			throw new AssertionError("AllRecipeTypes#processingCodec called on " + name() + ", which is not a processing recipe");
-		if (this == DEPLOYING || this == ITEM_APPLICATION)
-			return ItemApplicationRecipe.codec(this);
-		return ProcessingRecipeSerializer.codec(this);
-	}
+    public <T extends ProcessingRecipe<?>> MapCodec<T> processingCodec() {
+        if (!isProcessingRecipe)
+            throw new AssertionError(
+                    "AllRecipeTypes#processingCodec called on "
+                            + name()
+                            + ", which is not a processing recipe");
+        if (this == DEPLOYING || this == ITEM_APPLICATION) return ItemApplicationRecipe.codec(this);
+        return ProcessingRecipeSerializer.codec(this);
+    }
 }

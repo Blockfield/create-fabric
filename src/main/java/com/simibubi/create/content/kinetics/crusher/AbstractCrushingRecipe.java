@@ -8,17 +8,17 @@ import net.minecraft.world.item.crafting.RecipeInput;
 
 public abstract class AbstractCrushingRecipe extends ProcessingRecipe<RecipeInput> {
 
-	public AbstractCrushingRecipe(IRecipeTypeInfo recipeType, ProcessingRecipeParams params) {
-		super(recipeType, params);
-	}
+    public AbstractCrushingRecipe(IRecipeTypeInfo recipeType, ProcessingRecipeParams params) {
+        super(recipeType, params);
+    }
 
-	@Override
-	protected int getMaxInputCount() {
-		return 1;
-	}
+    @Override
+    protected int getMaxInputCount() {
+        return 1;
+    }
 
-	@Override
-	protected boolean canSpecifyDuration() {
-		return true;
-	}
+    @Override
+    protected boolean canSpecifyDuration() {
+        return true;
+    }
 }

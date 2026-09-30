@@ -1,15 +1,5 @@
 package com.simibubi.create.content.logistics.stockTicker;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
-import java.util.stream.IntStream;
-
-import javax.annotation.Nullable;
-
 import com.simibubi.create.AllBlockEntityTypes;
 import com.simibubi.create.AllSoundEvents;
 import com.simibubi.create.api.equipment.goggles.IHaveHoveringInformation;
@@ -28,6 +18,11 @@ import com.simibubi.create.foundation.utility.CreateLang;
 import net.createmod.catnip.data.Iterate;
 import net.createmod.catnip.nbt.NBTHelper;
 import net.createmod.catnip.platform.CatnipServices;
+import net.fabricmc.api.EnvType;
+import net.fabricmc.api.Environment;
+import net.fabricmc.fabric.api.transfer.v1.item.ItemVariant;
+import net.fabricmc.fabric.api.transfer.v1.storage.Storage;
+import net.fabricmc.fabric.api.transfer.v1.storage.base.SidedStorageBlockEntity;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
@@ -47,241 +42,257 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
-import net.fabricmc.api.EnvType;
-import net.fabricmc.api.Environment;
-import net.fabricmc.fabric.api.transfer.v1.item.ItemVariant;
-import net.fabricmc.fabric.api.transfer.v1.storage.Storage;
-import net.fabricmc.fabric.api.transfer.v1.storage.base.SidedStorageBlockEntity;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import java.util.stream.IntStream;
 
-public class StockTickerBlockEntity extends StockCheckingBlockEntity implements IHaveHoveringInformation, SidedStorageBlockEntity {
+import javax.annotation.Nullable;
 
-	// Player-interface Feature
-	protected List<List<BigItemStack>> lastClientsideStockSnapshot;
-	protected InventorySummary lastClientsideStockSnapshotAsSummary;
-	protected List<BigItemStack> newlyReceivedStockSnapshot;
-	protected String previouslyUsedAddress;
-	protected int activeLinks;
-	protected int ticksSinceLastUpdate;
-	protected List<ItemStack> categories;
-	protected Map<UUID, List<Integer>> hiddenCategoriesByPlayer;
+public class StockTickerBlockEntity extends StockCheckingBlockEntity
+        implements IHaveHoveringInformation, SidedStorageBlockEntity {
 
-	// Shop feature
-	protected SmartInventory receivedPayments;
+    // Player-interface Feature
+    protected List<List<BigItemStack>> lastClientsideStockSnapshot;
+    protected InventorySummary lastClientsideStockSnapshotAsSummary;
+    protected List<BigItemStack> newlyReceivedStockSnapshot;
+    protected String previouslyUsedAddress;
+    protected int activeLinks;
+    protected int ticksSinceLastUpdate;
+    protected List<ItemStack> categories;
+    protected Map<UUID, List<Integer>> hiddenCategoriesByPlayer;
 
-	public StockTickerBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state) {
-		super(type, pos, state);
-		previouslyUsedAddress = "";
-		receivedPayments = new SmartInventory(27, this, 64, false);
-		categories = new ArrayList<>();
-		hiddenCategoriesByPlayer = new HashMap<>();
-	}
+    // Shop feature
+    protected SmartInventory receivedPayments;
 
-	public void refreshClientStockSnapshot() {
-		ticksSinceLastUpdate = 0;
-		CatnipServices.NETWORK.sendToServer(new LogisticalStockRequestPacket(worldPosition));
-	}
+    public StockTickerBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state) {
+        super(type, pos, state);
+        previouslyUsedAddress = "";
+        receivedPayments = new SmartInventory(27, this, 64, false);
+        categories = new ArrayList<>();
+        hiddenCategoriesByPlayer = new HashMap<>();
+    }
 
-	public List<List<BigItemStack>> getClientStockSnapshot() {
-		return lastClientsideStockSnapshot;
-	}
+    public void refreshClientStockSnapshot() {
+        ticksSinceLastUpdate = 0;
+        CatnipServices.NETWORK.sendToServer(new LogisticalStockRequestPacket(worldPosition));
+    }
 
-	public InventorySummary getLastClientsideStockSnapshotAsSummary() {
-		return lastClientsideStockSnapshotAsSummary;
-	}
+    public List<List<BigItemStack>> getClientStockSnapshot() {
+        return lastClientsideStockSnapshot;
+    }
 
-	public int getTicksSinceLastUpdate() {
-		return ticksSinceLastUpdate;
-	}
+    public InventorySummary getLastClientsideStockSnapshotAsSummary() {
+        return lastClientsideStockSnapshotAsSummary;
+    }
 
-	@Override
-	public boolean broadcastPackageRequest(RequestType type, PackageOrder order, InventoryIdentifier identifier,
-										   String address, @Nullable PackageOrder orderContext) {
-		boolean result = super.broadcastPackageRequest(type, order, identifier, address, orderContext);
-		previouslyUsedAddress = address;
-		notifyUpdate();
-		return result;
-	}
+    public int getTicksSinceLastUpdate() {
+        return ticksSinceLastUpdate;
+    }
 
-	@Override
-	public InventorySummary getRecentSummary() {
-		InventorySummary recentSummary = super.getRecentSummary();
-		int contributingLinks = recentSummary.contributingLinks;
-		if (activeLinks != contributingLinks && !isRemoved()) {
-			activeLinks = contributingLinks;
-			sendData();
-		}
-		return recentSummary;
-	}
+    @Override
+    public boolean broadcastPackageRequest(
+            RequestType type,
+            PackageOrder order,
+            InventoryIdentifier identifier,
+            String address,
+            @Nullable PackageOrder orderContext) {
+        boolean result =
+                super.broadcastPackageRequest(type, order, identifier, address, orderContext);
+        previouslyUsedAddress = address;
+        notifyUpdate();
+        return result;
+    }
 
-	@Override
-	public void tick() {
-		super.tick();
-		if (level.isClientSide()) {
-			if (ticksSinceLastUpdate < 100)
-				ticksSinceLastUpdate += 1;
-			return;
-		}
-	}
+    @Override
+    public InventorySummary getRecentSummary() {
+        InventorySummary recentSummary = super.getRecentSummary();
+        int contributingLinks = recentSummary.contributingLinks;
+        if (activeLinks != contributingLinks && !isRemoved()) {
+            activeLinks = contributingLinks;
+            sendData();
+        }
+        return recentSummary;
+    }
 
-	@Override
-	protected void write(CompoundTag tag, HolderLookup.Provider registries, boolean clientPacket) {
-		super.write(tag, registries, clientPacket);
-		tag.putString("PreviousAddress", previouslyUsedAddress);
-		tag.put("ReceivedPayments", receivedPayments.serializeNBT(registries));
-		tag.put("Categories", NBTHelper.writeItemList(categories, registries));
-		tag.put("HiddenCategories", NBTHelper.writeCompoundList(hiddenCategoriesByPlayer.entrySet(), e -> {
-			CompoundTag c = new CompoundTag();
-			c.putUUID("Id", e.getKey());
-			c.putIntArray("Indices", e.getValue());
-			return c;
-		}));
+    @Override
+    public void tick() {
+        super.tick();
+        if (level.isClientSide()) {
+            if (ticksSinceLastUpdate < 100) ticksSinceLastUpdate += 1;
+            return;
+        }
+    }
 
-		if (clientPacket)
-			tag.putInt("ActiveLinks", activeLinks);
-	}
+    @Override
+    protected void write(CompoundTag tag, HolderLookup.Provider registries, boolean clientPacket) {
+        super.write(tag, registries, clientPacket);
+        tag.putString("PreviousAddress", previouslyUsedAddress);
+        tag.put("ReceivedPayments", receivedPayments.serializeNBT(registries));
+        tag.put("Categories", NBTHelper.writeItemList(categories, registries));
+        tag.put(
+                "HiddenCategories",
+                NBTHelper.writeCompoundList(
+                        hiddenCategoriesByPlayer.entrySet(),
+                        e -> {
+                            CompoundTag c = new CompoundTag();
+                            c.putUUID("Id", e.getKey());
+                            c.putIntArray("Indices", e.getValue());
+                            return c;
+                        }));
 
-	@Override
-	protected void read(CompoundTag tag, HolderLookup.Provider registries, boolean clientPacket) {
-		super.read(tag, registries, clientPacket);
-		previouslyUsedAddress = tag.getString("PreviousAddress");
-		receivedPayments.deserializeNBT(registries, tag.getCompound("ReceivedPayments"));
-		categories = NBTHelper.readItemList(tag.getList("Categories", Tag.TAG_COMPOUND), registries);
-		categories.removeIf(stack -> !stack.isEmpty() && !(stack.getItem() instanceof FilterItem));
-		hiddenCategoriesByPlayer.clear();
+        if (clientPacket) tag.putInt("ActiveLinks", activeLinks);
+    }
 
-		NBTHelper.iterateCompoundList(tag.getList("HiddenCategories", Tag.TAG_COMPOUND),
-			c -> hiddenCategoriesByPlayer.put(c.getUUID("Id"), IntStream.of(c.getIntArray("Indices"))
-				.boxed()
-				.toList()));
+    @Override
+    protected void read(CompoundTag tag, HolderLookup.Provider registries, boolean clientPacket) {
+        super.read(tag, registries, clientPacket);
+        previouslyUsedAddress = tag.getString("PreviousAddress");
+        receivedPayments.deserializeNBT(registries, tag.getCompound("ReceivedPayments"));
+        categories =
+                NBTHelper.readItemList(tag.getList("Categories", Tag.TAG_COMPOUND), registries);
+        categories.removeIf(stack -> !stack.isEmpty() && !(stack.getItem() instanceof FilterItem));
+        hiddenCategoriesByPlayer.clear();
 
-		if (clientPacket)
-			activeLinks = tag.getInt("ActiveLinks");
-	}
+        NBTHelper.iterateCompoundList(
+                tag.getList("HiddenCategories", Tag.TAG_COMPOUND),
+                c ->
+                        hiddenCategoriesByPlayer.put(
+                                c.getUUID("Id"),
+                                IntStream.of(c.getIntArray("Indices")).boxed().toList()));
 
-	public void receiveStockPacket(List<BigItemStack> stacks, boolean endOfTransmission) {
-		if (newlyReceivedStockSnapshot == null)
-			newlyReceivedStockSnapshot = new ArrayList<>();
-		newlyReceivedStockSnapshot.addAll(stacks);
+        if (clientPacket) activeLinks = tag.getInt("ActiveLinks");
+    }
 
-		if (!endOfTransmission)
-			return;
+    public void receiveStockPacket(List<BigItemStack> stacks, boolean endOfTransmission) {
+        if (newlyReceivedStockSnapshot == null) newlyReceivedStockSnapshot = new ArrayList<>();
+        newlyReceivedStockSnapshot.addAll(stacks);
 
-		lastClientsideStockSnapshotAsSummary = new InventorySummary();
-		lastClientsideStockSnapshot = new ArrayList<>();
+        if (!endOfTransmission) return;
 
-		for (BigItemStack bigStack : newlyReceivedStockSnapshot)
-			lastClientsideStockSnapshotAsSummary.add(bigStack);
+        lastClientsideStockSnapshotAsSummary = new InventorySummary();
+        lastClientsideStockSnapshot = new ArrayList<>();
 
-		for (ItemStack filter : categories) {
-			List<BigItemStack> inCategory = new ArrayList<>();
-			if (!filter.isEmpty()) {
-				FilterItemStack filterItemStack = FilterItemStack.of(filter);
-				for (Iterator<BigItemStack> iterator = newlyReceivedStockSnapshot.iterator(); iterator.hasNext(); ) {
-					BigItemStack bigStack = iterator.next();
-					if (!filterItemStack.test(level, bigStack.stack))
-						continue;
-					inCategory.add(bigStack);
-					iterator.remove();
-				}
-			}
-			lastClientsideStockSnapshot.add(inCategory);
-		}
+        for (BigItemStack bigStack : newlyReceivedStockSnapshot)
+            lastClientsideStockSnapshotAsSummary.add(bigStack);
 
-		List<BigItemStack> unsorted = new ArrayList<>(newlyReceivedStockSnapshot);
-		lastClientsideStockSnapshot.add(unsorted);
-		newlyReceivedStockSnapshot = null;
-	}
+        for (ItemStack filter : categories) {
+            List<BigItemStack> inCategory = new ArrayList<>();
+            if (!filter.isEmpty()) {
+                FilterItemStack filterItemStack = FilterItemStack.of(filter);
+                for (Iterator<BigItemStack> iterator = newlyReceivedStockSnapshot.iterator();
+                        iterator.hasNext(); ) {
+                    BigItemStack bigStack = iterator.next();
+                    if (!filterItemStack.test(level, bigStack.stack)) continue;
+                    inCategory.add(bigStack);
+                    iterator.remove();
+                }
+            }
+            lastClientsideStockSnapshot.add(inCategory);
+        }
 
-	public boolean isKeeperPresent() {
-		for (int yOffset : Iterate.zeroAndOne) {
-			for (Direction side : Iterate.horizontalDirections) {
-				BlockPos seatPos = worldPosition.below(yOffset)
-					.relative(side);
-				for (SeatEntity seatEntity : level.getEntitiesOfClass(SeatEntity.class, new AABB(seatPos)))
-					if (seatEntity.isVehicle())
-						return true;
-				if (yOffset == 0 && AllBlockEntityTypes.HEATER.is(level.getBlockEntity(seatPos)))
-					return true;
-			}
-		}
-		return false;
-	}
+        List<BigItemStack> unsorted = new ArrayList<>(newlyReceivedStockSnapshot);
+        lastClientsideStockSnapshot.add(unsorted);
+        newlyReceivedStockSnapshot = null;
+    }
 
-	@Override
-	@Environment(EnvType.CLIENT)
-	public boolean addToTooltip(List<Component> tooltip, boolean isPlayerSneaking) {
-		if (receivedPayments.isEmpty())
-			return false;
-		if (!behaviour.mayAdministrate(Minecraft.getInstance().player))
-			return false;
+    public boolean isKeeperPresent() {
+        for (int yOffset : Iterate.zeroAndOne) {
+            for (Direction side : Iterate.horizontalDirections) {
+                BlockPos seatPos = worldPosition.below(yOffset).relative(side);
+                for (SeatEntity seatEntity :
+                        level.getEntitiesOfClass(SeatEntity.class, new AABB(seatPos)))
+                    if (seatEntity.isVehicle()) return true;
+                if (yOffset == 0 && AllBlockEntityTypes.HEATER.is(level.getBlockEntity(seatPos)))
+                    return true;
+            }
+        }
+        return false;
+    }
 
-		CreateLang.translate("stock_ticker.contains_payments")
-			.style(ChatFormatting.WHITE)
-			.forGoggles(tooltip);
+    @Override
+    @Environment(EnvType.CLIENT)
+    public boolean addToTooltip(List<Component> tooltip, boolean isPlayerSneaking) {
+        if (receivedPayments.isEmpty()) return false;
+        if (!behaviour.mayAdministrate(Minecraft.getInstance().player)) return false;
 
-		InventorySummary summary = new InventorySummary();
-		receivedPayments.nonEmptyViews().forEach(summary::add);
-		for (BigItemStack entry : summary.getStacksByCount())
-			CreateLang.builder()
-				.text(Component.translatable(entry.stack.getDescriptionId())
-					.getString() + " x" + entry.count)
-				.style(ChatFormatting.GREEN)
-				.forGoggles(tooltip);
+        CreateLang.translate("stock_ticker.contains_payments")
+                .style(ChatFormatting.WHITE)
+                .forGoggles(tooltip);
 
-		CreateLang.translate("stock_ticker.click_to_retrieve")
-			.style(ChatFormatting.GRAY)
-			.forGoggles(tooltip);
-		return true;
-	}
+        InventorySummary summary = new InventorySummary();
+        receivedPayments.nonEmptyViews().forEach(summary::add);
+        for (BigItemStack entry : summary.getStacksByCount())
+            CreateLang.builder()
+                    .text(
+                            Component.translatable(entry.stack.getDescriptionId()).getString()
+                                    + " x"
+                                    + entry.count)
+                    .style(ChatFormatting.GREEN)
+                    .forGoggles(tooltip);
 
-	@Override
-	@org.jetbrains.annotations.Nullable
-	public Storage<ItemVariant> getItemStorage(@org.jetbrains.annotations.Nullable Direction side) {
-		return this.receivedPayments;
-	}
+        CreateLang.translate("stock_ticker.click_to_retrieve")
+                .style(ChatFormatting.GRAY)
+                .forGoggles(tooltip);
+        return true;
+    }
 
-	@Override
-	public void destroy() {
-		ItemHelper.dropContents(level, worldPosition, receivedPayments);
-		for (ItemStack filter : categories)
-			if (!filter.isEmpty() && filter.getItem() instanceof FilterItem)
-				Containers.dropItemStack(level, worldPosition.getX(), worldPosition.getY(), worldPosition.getZ(),
-					filter);
-		super.destroy();
-	}
+    @Override
+    @org.jetbrains.annotations.Nullable
+    public Storage<ItemVariant> getItemStorage(@org.jetbrains.annotations.Nullable Direction side) {
+        return this.receivedPayments;
+    }
 
-	public void playEffect() {
-		AllSoundEvents.STOCK_LINK.playAt(level, worldPosition, 1.0f, 1.0f, false);
-		Vec3 vec3 = Vec3.atCenterOf(worldPosition);
-		level.addParticle(new WiFiParticle.Data(), vec3.x, vec3.y, vec3.z, 1, 1, 1);
-	}
+    @Override
+    public void destroy() {
+        ItemHelper.dropContents(level, worldPosition, receivedPayments);
+        for (ItemStack filter : categories)
+            if (!filter.isEmpty() && filter.getItem() instanceof FilterItem)
+                Containers.dropItemStack(
+                        level,
+                        worldPosition.getX(),
+                        worldPosition.getY(),
+                        worldPosition.getZ(),
+                        filter);
+        super.destroy();
+    }
 
-	public class CategoryMenuProvider implements MenuProvider {
+    public void playEffect() {
+        AllSoundEvents.STOCK_LINK.playAt(level, worldPosition, 1.0f, 1.0f, false);
+        Vec3 vec3 = Vec3.atCenterOf(worldPosition);
+        level.addParticle(new WiFiParticle.Data(), vec3.x, vec3.y, vec3.z, 1, 1, 1);
+    }
 
-		@Override
-		public AbstractContainerMenu createMenu(int pContainerId, Inventory pPlayerInventory, Player pPlayer) {
-			return StockKeeperCategoryMenu.create(pContainerId, pPlayerInventory, StockTickerBlockEntity.this);
-		}
+    public class CategoryMenuProvider implements MenuProvider {
 
-		@Override
-		public Component getDisplayName() {
-			return Component.empty();
-		}
+        @Override
+        public AbstractContainerMenu createMenu(
+                int pContainerId, Inventory pPlayerInventory, Player pPlayer) {
+            return StockKeeperCategoryMenu.create(
+                    pContainerId, pPlayerInventory, StockTickerBlockEntity.this);
+        }
 
-	}
+        @Override
+        public Component getDisplayName() {
+            return Component.empty();
+        }
+    }
 
-	public class RequestMenuProvider implements MenuProvider {
+    public class RequestMenuProvider implements MenuProvider {
 
-		@Override
-		public AbstractContainerMenu createMenu(int pContainerId, Inventory pPlayerInventory, Player pPlayer) {
-			return StockKeeperRequestMenu.create(pContainerId, pPlayerInventory, StockTickerBlockEntity.this);
-		}
+        @Override
+        public AbstractContainerMenu createMenu(
+                int pContainerId, Inventory pPlayerInventory, Player pPlayer) {
+            return StockKeeperRequestMenu.create(
+                    pContainerId, pPlayerInventory, StockTickerBlockEntity.this);
+        }
 
-		@Override
-		public Component getDisplayName() {
-			return Component.empty();
-		}
-
-	}
-
+        @Override
+        public Component getDisplayName() {
+            return Component.empty();
+        }
+    }
 }

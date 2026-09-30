@@ -1,6 +1,6 @@
 name: My game crashed!
 description: Report an issue that crashes the game.
-labels: [ "type: crash" ]
+labels: ["type: crash"]
 body:
   - type: textarea
     attributes:

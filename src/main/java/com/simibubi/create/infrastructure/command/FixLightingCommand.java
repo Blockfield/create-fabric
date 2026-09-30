@@ -1,14 +1,14 @@
-//package com.simibubi.create.infrastructure.command;
+// package com.simibubi.create.infrastructure.command;
 //
-//import com.mojang.brigadier.builder.ArgumentBuilder;
+// import com.mojang.brigadier.builder.ArgumentBuilder;
 //
-//import net.createmod.catnip.platform.CatnipServices;
-//import net.minecraft.commands.CommandSourceStack;
-//import net.minecraft.commands.Commands;
-//import net.minecraft.network.chat.Component;
-//import net.minecraft.server.level.ServerPlayer;
+// import net.createmod.catnip.platform.CatnipServices;
+// import net.minecraft.commands.CommandSourceStack;
+// import net.minecraft.commands.Commands;
+// import net.minecraft.network.chat.Component;
+// import net.minecraft.server.level.ServerPlayer;
 //
-//public class FixLightingCommand {
+// public class FixLightingCommand {
 //
 //	static ArgumentBuilder<CommandSourceStack, ?> register() {
 //		return Commands.literal("fixLighting")
@@ -23,10 +23,11 @@
 //				ctx.getSource()
 //					.sendSuccess(() ->
 //                    {
-//                        return Component.literal("Forge's experimental block rendering pipeline is now enabled.");
+//                        return Component.literal("Forge's experimental block rendering pipeline is
+// now enabled.");
 //                    }, true);
 //
 //				return 1;
 //			});
 //	}
-//}
+// }

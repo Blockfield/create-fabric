@@ -1,16 +1,5 @@
 package com.simibubi.create.content.contraptions.mounted;
 
-import java.util.List;
-
-import javax.annotation.Nullable;
-
-import io.github.fabricators_of_create.porting_lib.blocks.util.MinecartAndRailUtil;
-
-import net.minecraft.world.phys.EntityHitResult;
-import net.minecraft.world.phys.Vec3;
-
-import org.apache.commons.lang3.tuple.MutablePair;
-
 import com.simibubi.create.AllDataComponents;
 import com.simibubi.create.AllItems;
 import com.simibubi.create.api.behaviour.movement.MovementBehaviour;
@@ -26,6 +15,8 @@ import com.simibubi.create.foundation.advancement.AllAdvancements;
 import com.simibubi.create.foundation.utility.AdventureUtil;
 import com.simibubi.create.foundation.utility.CreateLang;
 import com.simibubi.create.infrastructure.config.AllConfigs;
+
+import io.github.fabricators_of_create.porting_lib.blocks.util.MinecartAndRailUtil;
 
 import net.createmod.catnip.nbt.NBTHelper;
 import net.minecraft.ChatFormatting;
@@ -56,267 +47,302 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.RailShape;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate.StructureBlockInfo;
 import net.minecraft.world.phys.EntityHitResult;
+import net.minecraft.world.phys.Vec3;
 
-import io.github.fabricators_of_create.porting_lib.blocks.util.MinecartAndRailUtil;
+import org.apache.commons.lang3.tuple.MutablePair;
+
+import java.util.List;
+
+import javax.annotation.Nullable;
 
 public class MinecartContraptionItem extends Item {
 
-	private final AbstractMinecart.Type minecartType;
+    private final AbstractMinecart.Type minecartType;
 
-	public static MinecartContraptionItem rideable(Properties builder) {
-		return new MinecartContraptionItem(Type.RIDEABLE, builder);
-	}
+    public static MinecartContraptionItem rideable(Properties builder) {
+        return new MinecartContraptionItem(Type.RIDEABLE, builder);
+    }
 
-	public static MinecartContraptionItem furnace(Properties builder) {
-		return new MinecartContraptionItem(Type.FURNACE, builder);
-	}
+    public static MinecartContraptionItem furnace(Properties builder) {
+        return new MinecartContraptionItem(Type.FURNACE, builder);
+    }
 
-	public static MinecartContraptionItem chest(Properties builder) {
-		return new MinecartContraptionItem(Type.CHEST, builder);
-	}
+    public static MinecartContraptionItem chest(Properties builder) {
+        return new MinecartContraptionItem(Type.CHEST, builder);
+    }
 
-	@Override
-	public boolean canFitInsideContainerItems() {
-		return AllConfigs.server().kinetics.minecartContraptionInContainers.get();
-	}
+    @Override
+    public boolean canFitInsideContainerItems() {
+        return AllConfigs.server().kinetics.minecartContraptionInContainers.get();
+    }
 
-	private MinecartContraptionItem(Type minecartTypeIn, Properties builder) {
-		super(builder);
-		this.minecartType = minecartTypeIn;
-		DispenserBlock.registerBehavior(this, DISPENSER_BEHAVIOR);
-	}
+    private MinecartContraptionItem(Type minecartTypeIn, Properties builder) {
+        super(builder);
+        this.minecartType = minecartTypeIn;
+        DispenserBlock.registerBehavior(this, DISPENSER_BEHAVIOR);
+    }
 
-	// Taken and adjusted from MinecartItem
-	private static final DispenseItemBehavior DISPENSER_BEHAVIOR = new DefaultDispenseItemBehavior() {
-		private final DefaultDispenseItemBehavior behaviourDefaultDispenseItem = new DefaultDispenseItemBehavior();
-		@Override
-		public ItemStack execute(BlockSource source, ItemStack stack) {
-			if (!canPlace())
-				return behaviourDefaultDispenseItem.dispense(source, stack);
-			Direction direction = source.state()
-				.getValue(DispenserBlock.FACING);
-			ServerLevel world = source.level();
-			Vec3 vec3 = source.center();
-			double d0 = vec3.x() + (double) direction.getStepX() * 1.125D;
-			double d1 = Math.floor(vec3.y()) + (double) direction.getStepY();
-			double d2 = vec3.z() + (double) direction.getStepZ() * 1.125D;
-			BlockPos blockpos = source.pos()
-				.relative(direction);
-			BlockState blockstate = world.getBlockState(blockpos);
-			RailShape railshape = blockstate.getBlock() instanceof BaseRailBlock
-				? MinecartAndRailUtil.getDirectionOfRail(blockstate, world, blockpos, null)
-				: RailShape.NORTH_SOUTH;
-			double d3;
-			if (blockstate.is(BlockTags.RAILS)) {
-				if (railshape.isAscending()) {
-					d3 = 0.6D;
-				} else {
-					d3 = 0.1D;
-				}
-			} else {
-				if (!blockstate.isAir() || !world.getBlockState(blockpos.below())
-					.is(BlockTags.RAILS)) {
-					return this.behaviourDefaultDispenseItem.dispense(source, stack);
-				}
+    // Taken and adjusted from MinecartItem
+    private static final DispenseItemBehavior DISPENSER_BEHAVIOR =
+            new DefaultDispenseItemBehavior() {
+                private final DefaultDispenseItemBehavior behaviourDefaultDispenseItem =
+                        new DefaultDispenseItemBehavior();
 
-				BlockState blockstate1 = world.getBlockState(blockpos.below());
-				RailShape railshape1 = blockstate1.getBlock() instanceof BaseRailBlock
-					? MinecartAndRailUtil.getDirectionOfRail(blockstate1, world, blockpos.below(),
-					null)
-					: RailShape.NORTH_SOUTH;
-				if (direction != Direction.DOWN && railshape1.isAscending()) {
-					d3 = -0.4D;
-				} else {
-					d3 = -0.9D;
-				}
-			}
+                @Override
+                public ItemStack execute(BlockSource source, ItemStack stack) {
+                    if (!canPlace()) return behaviourDefaultDispenseItem.dispense(source, stack);
+                    Direction direction = source.state().getValue(DispenserBlock.FACING);
+                    ServerLevel world = source.level();
+                    Vec3 vec3 = source.center();
+                    double d0 = vec3.x() + (double) direction.getStepX() * 1.125D;
+                    double d1 = Math.floor(vec3.y()) + (double) direction.getStepY();
+                    double d2 = vec3.z() + (double) direction.getStepZ() * 1.125D;
+                    BlockPos blockpos = source.pos().relative(direction);
+                    BlockState blockstate = world.getBlockState(blockpos);
+                    RailShape railshape =
+                            blockstate.getBlock() instanceof BaseRailBlock
+                                    ? MinecartAndRailUtil.getDirectionOfRail(
+                                            blockstate, world, blockpos, null)
+                                    : RailShape.NORTH_SOUTH;
+                    double d3;
+                    if (blockstate.is(BlockTags.RAILS)) {
+                        if (railshape.isAscending()) {
+                            d3 = 0.6D;
+                        } else {
+                            d3 = 0.1D;
+                        }
+                    } else {
+                        if (!blockstate.isAir()
+                                || !world.getBlockState(blockpos.below()).is(BlockTags.RAILS)) {
+                            return this.behaviourDefaultDispenseItem.dispense(source, stack);
+                        }
 
-			AbstractMinecart abstractminecartentity = AbstractMinecart.createMinecart(world, d0, d1 + d3, d2,
-				((MinecartContraptionItem) stack.getItem()).minecartType, stack, null);
-			if (stack.has(DataComponents.CUSTOM_NAME))
-				abstractminecartentity.setCustomName(stack.getHoverName());
-			world.addFreshEntity(abstractminecartentity);
-			addContraptionToMinecart(world, stack, abstractminecartentity, direction);
+                        BlockState blockstate1 = world.getBlockState(blockpos.below());
+                        RailShape railshape1 =
+                                blockstate1.getBlock() instanceof BaseRailBlock
+                                        ? MinecartAndRailUtil.getDirectionOfRail(
+                                                blockstate1, world, blockpos.below(), null)
+                                        : RailShape.NORTH_SOUTH;
+                        if (direction != Direction.DOWN && railshape1.isAscending()) {
+                            d3 = -0.4D;
+                        } else {
+                            d3 = -0.9D;
+                        }
+                    }
 
-			stack.shrink(1);
-			return stack;
-		}
+                    AbstractMinecart abstractminecartentity =
+                            AbstractMinecart.createMinecart(
+                                    world,
+                                    d0,
+                                    d1 + d3,
+                                    d2,
+                                    ((MinecartContraptionItem) stack.getItem()).minecartType,
+                                    stack,
+                                    null);
+                    if (stack.has(DataComponents.CUSTOM_NAME))
+                        abstractminecartentity.setCustomName(stack.getHoverName());
+                    world.addFreshEntity(abstractminecartentity);
+                    addContraptionToMinecart(world, stack, abstractminecartentity, direction);
 
-		@Override
-		protected void playSound(BlockSource source) {
-			source.level()
-				.levelEvent(1000, source.pos(), 0);
-		}
-	};
+                    stack.shrink(1);
+                    return stack;
+                }
 
-	// Taken and adjusted from MinecartItem
-	@Override
-	public InteractionResult useOn(UseOnContext context) {
-		Level world = context.getLevel();
-		BlockPos blockpos = context.getClickedPos();
-		BlockState blockstate = world.getBlockState(blockpos);
-		if (!blockstate.is(BlockTags.RAILS)) {
-			return InteractionResult.FAIL;
-		} else if (!canPlace()) {
-			Player player = context.getPlayer();
-			if (player != null) {
-				Component message = CreateLang.translateDirect("contraption.minecart_contraption_illegal_placement").withStyle(ChatFormatting.RED);
-				player.displayClientMessage(message, true);
-			}
-			return InteractionResult.FAIL;
-		} else {
-			ItemStack itemstack = context.getItemInHand();
-			if (world instanceof ServerLevel serverlevel) {
-				RailShape railshape = blockstate.getBlock() instanceof BaseRailBlock
-					? MinecartAndRailUtil.getDirectionOfRail(blockstate, world, blockpos, null)
-					: RailShape.NORTH_SOUTH;
-				double d0 = 0.0D;
-				if (railshape.isAscending()) {
-					d0 = 0.5D;
-				}
+                @Override
+                protected void playSound(BlockSource source) {
+                    source.level().levelEvent(1000, source.pos(), 0);
+                }
+            };
 
-				AbstractMinecart abstractminecartentity =
-					AbstractMinecart.createMinecart(serverlevel, (double) blockpos.getX() + 0.5D,
-						(double) blockpos.getY() + 0.0625D + d0, (double) blockpos.getZ() + 0.5D, this.minecartType, itemstack, null);
-				if (itemstack.has(DataComponents.CUSTOM_NAME))
-					abstractminecartentity.setCustomName(itemstack.getHoverName());
-				Player player = context.getPlayer();
-				world.addFreshEntity(abstractminecartentity);
-				addContraptionToMinecart(world, itemstack, abstractminecartentity,
-					player == null ? null : player.getDirection());
-			}
+    // Taken and adjusted from MinecartItem
+    @Override
+    public InteractionResult useOn(UseOnContext context) {
+        Level world = context.getLevel();
+        BlockPos blockpos = context.getClickedPos();
+        BlockState blockstate = world.getBlockState(blockpos);
+        if (!blockstate.is(BlockTags.RAILS)) {
+            return InteractionResult.FAIL;
+        } else if (!canPlace()) {
+            Player player = context.getPlayer();
+            if (player != null) {
+                Component message =
+                        CreateLang.translateDirect(
+                                        "contraption.minecart_contraption_illegal_placement")
+                                .withStyle(ChatFormatting.RED);
+                player.displayClientMessage(message, true);
+            }
+            return InteractionResult.FAIL;
+        } else {
+            ItemStack itemstack = context.getItemInHand();
+            if (world instanceof ServerLevel serverlevel) {
+                RailShape railshape =
+                        blockstate.getBlock() instanceof BaseRailBlock
+                                ? MinecartAndRailUtil.getDirectionOfRail(
+                                        blockstate, world, blockpos, null)
+                                : RailShape.NORTH_SOUTH;
+                double d0 = 0.0D;
+                if (railshape.isAscending()) {
+                    d0 = 0.5D;
+                }
 
-			itemstack.shrink(1);
-			return InteractionResult.SUCCESS;
-		}
-	}
+                AbstractMinecart abstractminecartentity =
+                        AbstractMinecart.createMinecart(
+                                serverlevel,
+                                (double) blockpos.getX() + 0.5D,
+                                (double) blockpos.getY() + 0.0625D + d0,
+                                (double) blockpos.getZ() + 0.5D,
+                                this.minecartType,
+                                itemstack,
+                                null);
+                if (itemstack.has(DataComponents.CUSTOM_NAME))
+                    abstractminecartentity.setCustomName(itemstack.getHoverName());
+                Player player = context.getPlayer();
+                world.addFreshEntity(abstractminecartentity);
+                addContraptionToMinecart(
+                        world,
+                        itemstack,
+                        abstractminecartentity,
+                        player == null ? null : player.getDirection());
+            }
 
-	// fabric: temp fix for command smuggling for Blanketcon
-	private static boolean canPlace() {
-		return AllConfigs.server().kinetics.contraptionPlacing.get();
-	}
+            itemstack.shrink(1);
+            return InteractionResult.SUCCESS;
+        }
+    }
 
-	public static void addContraptionToMinecart(Level world, ItemStack itemstack, AbstractMinecart cart,
-												@Nullable Direction newFacing) {
-		if (itemstack.has(AllDataComponents.MINECRAFT_CONTRAPTION_DATA)) {
-			CompoundTag contraptionTag = itemstack.get(AllDataComponents.MINECRAFT_CONTRAPTION_DATA);
+    // fabric: temp fix for command smuggling for Blanketcon
+    private static boolean canPlace() {
+        return AllConfigs.server().kinetics.contraptionPlacing.get();
+    }
 
-			Direction intialOrientation = NBTHelper.readEnum(contraptionTag, "InitialOrientation", Direction.class);
+    public static void addContraptionToMinecart(
+            Level world,
+            ItemStack itemstack,
+            AbstractMinecart cart,
+            @Nullable Direction newFacing) {
+        if (itemstack.has(AllDataComponents.MINECRAFT_CONTRAPTION_DATA)) {
+            CompoundTag contraptionTag =
+                    itemstack.get(AllDataComponents.MINECRAFT_CONTRAPTION_DATA);
 
-			Contraption mountedContraption = Contraption.fromNBT(world, contraptionTag, false);
-			OrientedContraptionEntity contraptionEntity =
-				newFacing == null ? OrientedContraptionEntity.create(world, mountedContraption, intialOrientation)
-					: OrientedContraptionEntity.createAtYaw(world, mountedContraption, intialOrientation,
-					newFacing.toYRot());
+            Direction intialOrientation =
+                    NBTHelper.readEnum(contraptionTag, "InitialOrientation", Direction.class);
 
-			contraptionEntity.startRiding(cart);
-			contraptionEntity.setPos(cart.getX(), cart.getY(), cart.getZ());
-			world.addFreshEntity(contraptionEntity);
-		}
-	}
+            Contraption mountedContraption = Contraption.fromNBT(world, contraptionTag, false);
+            OrientedContraptionEntity contraptionEntity =
+                    newFacing == null
+                            ? OrientedContraptionEntity.create(
+                                    world, mountedContraption, intialOrientation)
+                            : OrientedContraptionEntity.createAtYaw(
+                                    world,
+                                    mountedContraption,
+                                    intialOrientation,
+                                    newFacing.toYRot());
 
-	@Override
-	public String getDescriptionId(ItemStack stack) {
-		return "item.create.minecart_contraption";
-	}
+            contraptionEntity.startRiding(cart);
+            contraptionEntity.setPos(cart.getX(), cart.getY(), cart.getZ());
+            world.addFreshEntity(contraptionEntity);
+        }
+    }
 
-	public static InteractionResult wrenchCanBeUsedToPickUpMinecartContraptions(Player player, Level world, InteractionHand hand, Entity entity, @Nullable EntityHitResult hitResult) {
-		if (player == null || entity == null)
-			return InteractionResult.PASS;
-		if (!AllConfigs.server().kinetics.survivalContraptionPickup.get() && !player.isCreative())
-			return InteractionResult.PASS;
+    @Override
+    public String getDescriptionId(ItemStack stack) {
+        return "item.create.minecart_contraption";
+    }
 
-		if (player.isSpectator()) // forge checks this, fabric does not
-			return InteractionResult.PASS;
-		if (AdventureUtil.isAdventure(player))
-			return InteractionResult.PASS;
+    public static InteractionResult wrenchCanBeUsedToPickUpMinecartContraptions(
+            Player player,
+            Level world,
+            InteractionHand hand,
+            Entity entity,
+            @Nullable EntityHitResult hitResult) {
+        if (player == null || entity == null) return InteractionResult.PASS;
+        if (!AllConfigs.server().kinetics.survivalContraptionPickup.get() && !player.isCreative())
+            return InteractionResult.PASS;
 
-		ItemStack wrench = player.getItemInHand(hand);
-		if (!AllItems.WRENCH.isIn(wrench))
-			return InteractionResult.PASS;
-		if (entity instanceof AbstractContraptionEntity)
-			entity = entity.getVehicle();
-		if (!(entity instanceof AbstractMinecart cart))
-			return InteractionResult.PASS;
-		if (!entity.isAlive())
-			return InteractionResult.PASS;
-		if (player instanceof DeployerFakePlayer dfp && dfp.onMinecartContraption)
-			return InteractionResult.PASS;
-		Type type = cart.getMinecartType();
-		if (type != Type.RIDEABLE && type != Type.FURNACE && type != Type.CHEST)
-			return InteractionResult.PASS;
-		List<Entity> passengers = cart.getPassengers();
-		if (passengers.isEmpty() || !(passengers.get(0) instanceof OrientedContraptionEntity oce))
-			return InteractionResult.PASS;
-		Contraption contraption = oce.getContraption();
+        if (player.isSpectator()) // forge checks this, fabric does not
+        return InteractionResult.PASS;
+        if (AdventureUtil.isAdventure(player)) return InteractionResult.PASS;
 
-		if (ContraptionMovementSetting.isNoPickup(contraption.getBlocks()
-			.values())) {
-			player.displayClientMessage(CreateLang.translateDirect("contraption.minecart_contraption_illegal_pickup")
-				.withStyle(ChatFormatting.RED), true);
-			return InteractionResult.PASS;
-		}
+        ItemStack wrench = player.getItemInHand(hand);
+        if (!AllItems.WRENCH.isIn(wrench)) return InteractionResult.PASS;
+        if (entity instanceof AbstractContraptionEntity) entity = entity.getVehicle();
+        if (!(entity instanceof AbstractMinecart cart)) return InteractionResult.PASS;
+        if (!entity.isAlive()) return InteractionResult.PASS;
+        if (player instanceof DeployerFakePlayer dfp && dfp.onMinecartContraption)
+            return InteractionResult.PASS;
+        Type type = cart.getMinecartType();
+        if (type != Type.RIDEABLE && type != Type.FURNACE && type != Type.CHEST)
+            return InteractionResult.PASS;
+        List<Entity> passengers = cart.getPassengers();
+        if (passengers.isEmpty() || !(passengers.get(0) instanceof OrientedContraptionEntity oce))
+            return InteractionResult.PASS;
+        Contraption contraption = oce.getContraption();
 
-		if (world.isClientSide) {
-			return InteractionResult.SUCCESS;
-		}
+        if (ContraptionMovementSetting.isNoPickup(contraption.getBlocks().values())) {
+            player.displayClientMessage(
+                    CreateLang.translateDirect("contraption.minecart_contraption_illegal_pickup")
+                            .withStyle(ChatFormatting.RED),
+                    true);
+            return InteractionResult.PASS;
+        }
 
-		contraption.stop(world);
+        if (world.isClientSide) {
+            return InteractionResult.SUCCESS;
+        }
 
-		for (MutablePair<StructureBlockInfo, MovementContext> pair : contraption.getActors())
-			if (MovementBehaviour.REGISTRY.get(pair.left.state()) instanceof PortableStorageInterfaceMovement psim)
-				psim.reset(pair.right);
+        contraption.stop(world);
 
-		ItemStack generatedStack = create(type, oce);
-		generatedStack.set(DataComponents.CUSTOM_NAME, entity.getCustomName());
+        for (MutablePair<StructureBlockInfo, MovementContext> pair : contraption.getActors())
+            if (MovementBehaviour.REGISTRY.get(pair.left.state())
+                    instanceof PortableStorageInterfaceMovement psim) psim.reset(pair.right);
 
-		if (ContraptionPickupLimiting.isTooLargeForPickup(generatedStack.saveOptional(world.registryAccess()))) {
-			MutableComponent message = CreateLang.translateDirect("contraption.minecart_contraption_too_big")
-				.withStyle(ChatFormatting.RED);
-			player.displayClientMessage(message, true);
-			return InteractionResult.PASS;
-		}
+        ItemStack generatedStack = create(type, oce);
+        generatedStack.set(DataComponents.CUSTOM_NAME, entity.getCustomName());
 
-		if (contraption.getBlocks()
-			.size() > 200)
-			AllAdvancements.CART_PICKUP.awardTo(player);
+        if (ContraptionPickupLimiting.isTooLargeForPickup(
+                generatedStack.saveOptional(world.registryAccess()))) {
+            MutableComponent message =
+                    CreateLang.translateDirect("contraption.minecart_contraption_too_big")
+                            .withStyle(ChatFormatting.RED);
+            player.displayClientMessage(message, true);
+            return InteractionResult.PASS;
+        }
 
-		player.getInventory()
-			.placeItemBackInInventory(generatedStack);
-		oce.discard();
-		entity.discard();
-		return InteractionResult.SUCCESS;
-	}
+        if (contraption.getBlocks().size() > 200) AllAdvancements.CART_PICKUP.awardTo(player);
 
-	public static ItemStack create(Type type, OrientedContraptionEntity entity) {
-		ItemStack stack = ItemStack.EMPTY;
+        player.getInventory().placeItemBackInInventory(generatedStack);
+        oce.discard();
+        entity.discard();
+        return InteractionResult.SUCCESS;
+    }
 
-		switch (type) {
-			case RIDEABLE:
-				stack = AllItems.MINECART_CONTRAPTION.asStack();
-				break;
-			case FURNACE:
-				stack = AllItems.FURNACE_MINECART_CONTRAPTION.asStack();
-				break;
-			case CHEST:
-				stack = AllItems.CHEST_MINECART_CONTRAPTION.asStack();
-				break;
-			default:
-				break;
-		}
+    public static ItemStack create(Type type, OrientedContraptionEntity entity) {
+        ItemStack stack = ItemStack.EMPTY;
 
-		if (stack.isEmpty())
-			return stack;
+        switch (type) {
+            case RIDEABLE:
+                stack = AllItems.MINECART_CONTRAPTION.asStack();
+                break;
+            case FURNACE:
+                stack = AllItems.FURNACE_MINECART_CONTRAPTION.asStack();
+                break;
+            case CHEST:
+                stack = AllItems.CHEST_MINECART_CONTRAPTION.asStack();
+                break;
+            default:
+                break;
+        }
 
-		CompoundTag tag = entity.getContraption()
-			.writeNBT(entity.registryAccess(), false);
-		tag.remove("UUID");
-		tag.remove("Pos");
-		tag.remove("Motion");
+        if (stack.isEmpty()) return stack;
 
-		NBTHelper.writeEnum(tag, "InitialOrientation", entity.getInitialOrientation());
+        CompoundTag tag = entity.getContraption().writeNBT(entity.registryAccess(), false);
+        tag.remove("UUID");
+        tag.remove("Pos");
+        tag.remove("Motion");
 
-		stack.set(AllDataComponents.MINECRAFT_CONTRAPTION_DATA, tag);
-		return stack;
-	}
+        NBTHelper.writeEnum(tag, "InitialOrientation", entity.getInitialOrientation());
+
+        stack.set(AllDataComponents.MINECRAFT_CONTRAPTION_DATA, tag);
+        return stack;
+    }
 }

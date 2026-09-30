@@ -1,61 +1,63 @@
 package com.simibubi.create.foundation.item;
 
-import java.util.List;
-
-import net.minecraft.world.item.ItemStack;
+import com.simibubi.create.infrastructure.fabric.transfer.item.SlottedStackStorage;
 
 import net.fabricmc.fabric.api.transfer.v1.item.ItemVariant;
 import net.fabricmc.fabric.api.transfer.v1.storage.base.CombinedSlottedStorage;
+import net.minecraft.world.item.ItemStack;
 
-import com.simibubi.create.infrastructure.fabric.transfer.item.SlottedStackStorage;
+import java.util.List;
 
-public class CombinedSlottedStackStorage<S extends SlottedStackStorage> extends CombinedSlottedStorage<ItemVariant, S> implements SlottedStackStorage {
-	public CombinedSlottedStackStorage(List<S> parts) {
-		super(parts);
-	}
+public class CombinedSlottedStackStorage<S extends SlottedStackStorage>
+        extends CombinedSlottedStorage<ItemVariant, S> implements SlottedStackStorage {
+    public CombinedSlottedStackStorage(List<S> parts) {
+        super(parts);
+    }
 
-	@SafeVarargs
-	public CombinedSlottedStackStorage(S... parts) {
-		this(List.of(parts));
-	}
+    @SafeVarargs
+    public CombinedSlottedStackStorage(S... parts) {
+        this(List.of(parts));
+    }
 
-	private <T> T getFromStorage(int slot, SlotFunction<T> function) {
-		for (S part : this.parts) {
-			if (slot < part.getSlotCount()) {
-				return function.apply(part, slot);
-			}
+    private <T> T getFromStorage(int slot, SlotFunction<T> function) {
+        for (S part : this.parts) {
+            if (slot < part.getSlotCount()) {
+                return function.apply(part, slot);
+            }
 
-			slot -= part.getSlotCount();
-		}
+            slot -= part.getSlotCount();
+        }
 
-		throw new IndexOutOfBoundsException(slot);
-	}
+        throw new IndexOutOfBoundsException(slot);
+    }
 
-	@Override
-	public ItemStack getStackInSlot(int slot) {
-		return this.getFromStorage(slot, SlottedStackStorage::getStackInSlot);
-	}
+    @Override
+    public ItemStack getStackInSlot(int slot) {
+        return this.getFromStorage(slot, SlottedStackStorage::getStackInSlot);
+    }
 
-	@Override
-	public void setStackInSlot(int slot, ItemStack stack) {
-		this.getFromStorage(slot, (storage, index) -> {
-			storage.setStackInSlot(index, stack);
-			return null;
-		});
-	}
+    @Override
+    public void setStackInSlot(int slot, ItemStack stack) {
+        this.getFromStorage(
+                slot,
+                (storage, index) -> {
+                    storage.setStackInSlot(index, stack);
+                    return null;
+                });
+    }
 
-	@Override
-	public int getSlotLimit(int slot) {
-		return this.getFromStorage(slot, SlottedStackStorage::getSlotLimit);
-	}
+    @Override
+    public int getSlotLimit(int slot) {
+        return this.getFromStorage(slot, SlottedStackStorage::getSlotLimit);
+    }
 
-	@Override
-	public boolean isItemValid(int slot, ItemStack stack) {
-		return this.getFromStorage(slot, (storage, index) -> storage.isItemValid(index, stack));
-	}
+    @Override
+    public boolean isItemValid(int slot, ItemStack stack) {
+        return this.getFromStorage(slot, (storage, index) -> storage.isItemValid(index, stack));
+    }
 
-	@FunctionalInterface
-	private interface SlotFunction<T> {
-		T apply(SlottedStackStorage storage, int slot);
-	}
+    @FunctionalInterface
+    private interface SlotFunction<T> {
+        T apply(SlottedStackStorage storage, int slot);
+    }
 }

@@ -14,7 +14,7 @@ val milkLibVersion = "1.1.0"
 
 // external dependencies
 val configApiVersion = "21.1.3"
-val nightConfigVersion =  "3.6.3"
+val nightConfigVersion = "3.6.3"
 val jsr305Version = "3.0.2"
 
 // compat
@@ -66,13 +66,15 @@ repositories {
     maven("https://mvn.devos.one/snapshots") // Registrate, Forge Tags, Milk Lib
     maven("https://raw.githubusercontent.com/Fuzss/modresources/main/maven") // Forge Config API Port
     maven("https://maven.shedaniel.me") // REI and deps
-    maven("https://api.modrinth.com/maven") { // LazyDFU, Sodium, Sandwichable
+    maven("https://api.modrinth.com/maven") {
+        // LazyDFU, Sodium, Sandwichable
         content { includeGroupAndSubgroups("maven.modrinth") }
     }
     maven("https://maven.terraformersmc.com") // Mod Menu, Trinkets
     maven("https://maven.squiddev.cc") // CC:T
     maven("https://modmaven.dev") // Botania
-    maven("https://maven.jamieswhiteshirt.com/libs-release") { // Reach Entity Attributes
+    maven("https://maven.jamieswhiteshirt.com/libs-release") {
+        // Reach Entity Attributes
         content { includeGroup("com.jamieswhiteshirt") }
     }
     maven("https://maven.ladysnake.org/releases") // CCA, for Trinkets
@@ -86,10 +88,12 @@ val ponder = file("Ponder")
 dependencies {
     // setup
     minecraft("com.mojang:minecraft:$minecraftVersion")
-    mappings(loom.layered {
-        officialMojangMappings { nameSyntheticMembers = false }
-        parchment("org.parchmentmc.data:parchment-$minecraftVersion:$parchmentVersion@zip")
-    })
+    mappings(
+        loom.layered {
+            officialMojangMappings { nameSyntheticMembers = false }
+            parchment("org.parchmentmc.data:parchment-$minecraftVersion:$parchmentVersion@zip")
+        },
+    )
     modImplementation("net.fabricmc:fabric-loader:$loaderVersion")
 
     // dependencies
@@ -99,9 +103,11 @@ dependencies {
     // (IPlantable, LanguageManagerExt) в jar Minecraft поверх beta.90 — компиляция падает.
     // common объявлен ниже явно в beta.90; остальные модули beta.39 оставлены, иначе modApi
     // теряет апгрейд fabric-api 0.104 -> 0.105.
-    modApi(include("com.tterrag.registrate_fabric:Registrate:$registrateVersion") {
-        exclude(group = "io.github.fabricators_of_create.Porting-Lib")
-    })
+    modApi(
+        include("com.tterrag.registrate_fabric:Registrate:$registrateVersion") {
+            exclude(group = "io.github.fabricators_of_create.Porting-Lib")
+        },
+    )
 
     modApi(include("com.electronwill.night-config:core:$nightConfigVersion")!!)
     modApi(include("com.electronwill.night-config:toml:$nightConfigVersion")!!)
@@ -110,7 +116,7 @@ dependencies {
     // impl Flywheel клиентский, API нужен и серверу (визуалы регистрируются в AllBlocks)
     modApi(include("dev.engine-room.flywheel:flywheel-fabric-api-$minecraftVersion:$flywheelVersion")!!)
     // Milk Lib с maven Create заканчивается 1.18; сборка под 1.21.1 живёт на Modrinth (Tu5LjQoE), лежит в libs/
-    modApi(files("libs/milk-lib-1.1.0-patch+1.21.1.jar"))  // в пак едет отдельным модом с Modrinth
+    modApi(files("libs/milk-lib-1.1.0-patch+1.21.1.jar")) // в пак едет отдельным модом с Modrinth
     api(include("com.google.code.findbugs:jsr305:$jsr305Version")!!)
 
     if (ponder.exists()) {
@@ -226,14 +232,15 @@ configurations {
 tasks.named<ProcessResources>("processResources") {
     exclude("**/*.bbmodel", "**/*.lnk")
 
-    val properties: MutableMap<String, Any> = mutableMapOf(
-        "version" to version,
-        "minecraft_version" to minecraftVersion,
-        "loader_version" to loaderVersion,
-        "fabric_version" to fapiVersion,
-        "forge_config_version" to configApiVersion,
-        "milk_lib_version" to milkLibVersion
-    )
+    val properties: MutableMap<String, Any> =
+        mutableMapOf(
+            "version" to version,
+            "minecraft_version" to minecraftVersion,
+            "loader_version" to loaderVersion,
+            "fabric_version" to fapiVersion,
+            "forge_config_version" to configApiVersion,
+            "milk_lib_version" to milkLibVersion,
+        )
 
     inputs.properties(properties)
 
@@ -318,3 +325,14 @@ tasks.register<JavaExec>("trackCollisionCheck") {
     mainClass = "com.simibubi.create.content.trains.track.TrackCollisionCheck"
     maxHeapSize = "256m"
 }
+
+tasks.register<org.gradle.api.tasks.compile.JavaCompile>("lintJava") {
+    dependsOn("testClasses")
+    source(sourceSets["main"].allJava, sourceSets["test"].allJava)
+    classpath =
+        sourceSets["main"].compileClasspath + sourceSets["test"].compileClasspath + sourceSets["main"].output + sourceSets["test"].output
+    destinationDirectory = layout.buildDirectory.dir("classes/java/lint")
+    options.annotationProcessorPath = files()
+    options.compilerArgs.addAll(listOf("-proc:none", "-Xlint:divzero,empty,fallthrough,finally,-removal", "-Werror"))
+}
+tasks.named("check") { dependsOn("lintJava") }

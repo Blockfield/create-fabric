@@ -3,9 +3,10 @@ package com.simibubi.create.content.contraptions.actors.seat;
 import com.simibubi.create.AllEntityTypes;
 import com.simibubi.create.content.logistics.box.PackageEntity;
 
+import io.github.fabricators_of_create.porting_lib.entity.IEntityWithComplexSpawn;
+
 import net.fabricmc.fabric.api.entity.FakePlayer;
 import net.fabricmc.fabric.api.object.builder.v1.entity.FabricEntityTypeBuilder;
-
 import net.minecraft.client.renderer.culling.Frustum;
 import net.minecraft.client.renderer.entity.EntityRenderer;
 import net.minecraft.client.renderer.entity.EntityRendererProvider;
@@ -31,130 +32,121 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
-import net.fabricmc.fabric.api.entity.FakePlayer;
-import net.fabricmc.fabric.api.object.builder.v1.entity.FabricEntityTypeBuilder;
-
-import io.github.fabricators_of_create.porting_lib.entity.PortingLibEntity;
-
-import io.github.fabricators_of_create.porting_lib.entity.IEntityWithComplexSpawn;
-
 public class SeatEntity extends Entity implements IEntityWithComplexSpawn {
 
-	public SeatEntity(EntityType<?> p_i48580_1_, Level p_i48580_2_) {
-		super(p_i48580_1_, p_i48580_2_);
-	}
+    public SeatEntity(EntityType<?> p_i48580_1_, Level p_i48580_2_) {
+        super(p_i48580_1_, p_i48580_2_);
+    }
 
-	public SeatEntity(Level world, BlockPos pos) {
-		this(AllEntityTypes.SEAT.get(), world);
-		noPhysics = true;
-	}
+    public SeatEntity(Level world, BlockPos pos) {
+        this(AllEntityTypes.SEAT.get(), world);
+        noPhysics = true;
+    }
 
-	public static FabricEntityTypeBuilder<?> build(FabricEntityTypeBuilder<?> builder) {
-//		@SuppressWarnings("unchecked")
-//		EntityType.Builder<SeatEntity> entityBuilder = (EntityType.Builder<SeatEntity>) builder;
-		return builder.dimensions(EntityDimensions.fixed(0.25f, 0.35f));
-	}
+    public static FabricEntityTypeBuilder<?> build(FabricEntityTypeBuilder<?> builder) {
+        //		@SuppressWarnings("unchecked")
+        //		EntityType.Builder<SeatEntity> entityBuilder = (EntityType.Builder<SeatEntity>) builder;
+        return builder.dimensions(EntityDimensions.fixed(0.25f, 0.35f));
+    }
 
-	@Override
-	public void setPos(double x, double y, double z) {
-		super.setPos(x, y, z);
-		AABB bb = getBoundingBox();
-		Vec3 diff = new Vec3(x, y, z).subtract(bb.getCenter());
-		setBoundingBox(bb.move(diff));
-	}
+    @Override
+    public void setPos(double x, double y, double z) {
+        super.setPos(x, y, z);
+        AABB bb = getBoundingBox();
+        Vec3 diff = new Vec3(x, y, z).subtract(bb.getCenter());
+        setBoundingBox(bb.move(diff));
+    }
 
-	@Override
-	protected void positionRider(Entity pEntity, Entity.MoveFunction pCallback) {
-		if (!this.hasPassenger(pEntity))
-			return;
-		double heightOffset = this.getPassengerRidingPosition(pEntity).y - pEntity.getVehicleAttachmentPoint(this).y;
+    @Override
+    protected void positionRider(Entity pEntity, Entity.MoveFunction pCallback) {
+        if (!this.hasPassenger(pEntity)) return;
+        double heightOffset =
+                this.getPassengerRidingPosition(pEntity).y
+                        - pEntity.getVehicleAttachmentPoint(this).y;
 
-		pCallback.accept(pEntity, this.getX(), 1.0 / 16.0 + heightOffset + getCustomEntitySeatOffset(pEntity), this.getZ());
-	}
+        pCallback.accept(
+                pEntity,
+                this.getX(),
+                1.0 / 16.0 + heightOffset + getCustomEntitySeatOffset(pEntity),
+                this.getZ());
+    }
 
-	public static double getCustomEntitySeatOffset(Entity entity) {
-		if (entity instanceof Slime)
-			return 0.0f;
-		if (entity instanceof Parrot)
-			return 1 / 12f;
-		if (entity instanceof Skeleton)
-			return 1 / 8f;
-		if (entity instanceof Cat)
-			return 1 / 12f;
-		if (entity instanceof Wolf)
-			return 1 / 16f;
-		if (entity instanceof Frog)
-			return 1.5 / 16f;
-		if (entity instanceof Spider)
-			return 1 / 8.0;
-		if (entity instanceof PackageEntity)
-			return 3 / 32f;
-		return 0;
-	}
+    public static double getCustomEntitySeatOffset(Entity entity) {
+        if (entity instanceof Slime) return 0.0f;
+        if (entity instanceof Parrot) return 1 / 12f;
+        if (entity instanceof Skeleton) return 1 / 8f;
+        if (entity instanceof Cat) return 1 / 12f;
+        if (entity instanceof Wolf) return 1 / 16f;
+        if (entity instanceof Frog) return 1.5 / 16f;
+        if (entity instanceof Spider) return 1 / 8.0;
+        if (entity instanceof PackageEntity) return 3 / 32f;
+        return 0;
+    }
 
-	@Override
-	public void setDeltaMovement(Vec3 p_213317_1_) {}
+    @Override
+    public void setDeltaMovement(Vec3 p_213317_1_) {}
 
-	@Override
-	public void tick() {
-		if (level().isClientSide)
-			return;
-		boolean blockPresent = level().getBlockState(blockPosition())
-			.getBlock() instanceof SeatBlock;
-		if (isVehicle() && blockPresent)
-			return;
-		this.discard();
-	}
+    @Override
+    public void tick() {
+        if (level().isClientSide) return;
+        boolean blockPresent =
+                level().getBlockState(blockPosition()).getBlock() instanceof SeatBlock;
+        if (isVehicle() && blockPresent) return;
+        this.discard();
+    }
 
-	@Override
-	protected boolean canRide(Entity entity) {
-		// Fake Players (tested with deployers) have a BUNCH of weird issues, don't let
-		// them ride seats
-		return !(entity instanceof Player player && player instanceof FakePlayer);
-	}
+    @Override
+    protected boolean canRide(Entity entity) {
+        // Fake Players (tested with deployers) have a BUNCH of weird issues, don't let
+        // them ride seats
+        return !(entity instanceof Player player && player instanceof FakePlayer);
+    }
 
-	@Override
-	protected void removePassenger(Entity entity) {
-		super.removePassenger(entity);
-		if (entity instanceof TamableAnimal ta)
-			ta.setInSittingPose(false);
-	}
+    @Override
+    protected void removePassenger(Entity entity) {
+        super.removePassenger(entity);
+        if (entity instanceof TamableAnimal ta) ta.setInSittingPose(false);
+    }
 
-	@Override
-	public Vec3 getDismountLocationForPassenger(LivingEntity pLivingEntity) {
-		return super.getDismountLocationForPassenger(pLivingEntity).add(0, 0.5f, 0);
-	}
+    @Override
+    public Vec3 getDismountLocationForPassenger(LivingEntity pLivingEntity) {
+        return super.getDismountLocationForPassenger(pLivingEntity).add(0, 0.5f, 0);
+    }
 
-	@Override
-	protected void defineSynchedData(SynchedEntityData.Builder builder) {}
+    @Override
+    protected void defineSynchedData(SynchedEntityData.Builder builder) {}
 
-	@Override
-	protected void readAdditionalSaveData(CompoundTag p_70037_1_) {}
+    @Override
+    protected void readAdditionalSaveData(CompoundTag p_70037_1_) {}
 
-	@Override
-	protected void addAdditionalSaveData(CompoundTag p_213281_1_) {}
+    @Override
+    protected void addAdditionalSaveData(CompoundTag p_213281_1_) {}
 
-	public static class Render extends EntityRenderer<SeatEntity> {
+    public static class Render extends EntityRenderer<SeatEntity> {
 
-		public Render(EntityRendererProvider.Context context) {
-			super(context);
-		}
+        public Render(EntityRendererProvider.Context context) {
+            super(context);
+        }
 
-		@Override
-		public boolean shouldRender(SeatEntity p_225626_1_, Frustum p_225626_2_, double p_225626_3_, double p_225626_5_,
-			double p_225626_7_) {
-			return false;
-		}
+        @Override
+        public boolean shouldRender(
+                SeatEntity p_225626_1_,
+                Frustum p_225626_2_,
+                double p_225626_3_,
+                double p_225626_5_,
+                double p_225626_7_) {
+            return false;
+        }
 
-		@Override
-		public ResourceLocation getTextureLocation(SeatEntity p_110775_1_) {
-			return null;
-		}
-	}
+        @Override
+        public ResourceLocation getTextureLocation(SeatEntity p_110775_1_) {
+            return null;
+        }
+    }
 
-	@Override
-	public void writeSpawnData(RegistryFriendlyByteBuf buffer) {}
+    @Override
+    public void writeSpawnData(RegistryFriendlyByteBuf buffer) {}
 
-	@Override
-	public void readSpawnData(RegistryFriendlyByteBuf additionalData) {}
+    @Override
+    public void readSpawnData(RegistryFriendlyByteBuf additionalData) {}
 }

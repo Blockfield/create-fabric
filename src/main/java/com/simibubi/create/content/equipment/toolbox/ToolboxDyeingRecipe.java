@@ -2,15 +2,12 @@ package com.simibubi.create.content.equipment.toolbox;
 
 import com.simibubi.create.AllBlocks;
 import com.simibubi.create.AllRecipeTypes;
-
 import com.simibubi.create.infrastructure.fabric.item.ItemUtils;
 
+import io.github.fabricators_of_create.porting_lib.tags.Tags;
 import io.github.fabricators_of_create.porting_lib.util.TagUtil;
 
 import net.minecraft.core.HolderLookup;
-import net.minecraft.core.RegistryAccess;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.inventory.CraftingContainer;
 import net.minecraft.world.item.DyeColor;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.CraftingBookCategory;
@@ -20,76 +17,70 @@ import net.minecraft.world.item.crafting.RecipeSerializer;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 
-import io.github.fabricators_of_create.porting_lib.tags.Tags;
-import io.github.fabricators_of_create.porting_lib.util.TagUtil;
-
 public class ToolboxDyeingRecipe extends CustomRecipe {
 
-	public ToolboxDyeingRecipe(CraftingBookCategory category) {
-		super(category);
-	}
+    public ToolboxDyeingRecipe(CraftingBookCategory category) {
+        super(category);
+    }
 
-	@Override
-	public boolean matches(CraftingInput input, Level level) {
-		int toolboxes = 0;
-		int dyes = 0;
+    @Override
+    public boolean matches(CraftingInput input, Level level) {
+        int toolboxes = 0;
+        int dyes = 0;
 
-		for (int i = 0; i < input.size(); ++i) {
-			ItemStack stack = input.getItem(i);
-			if (!stack.isEmpty()) {
-				if (Block.byItem(stack.getItem()) instanceof ToolboxBlock) {
-					++toolboxes;
-				} else {
-					if (!stack.is(Tags.Items.DYES))
-						return false;
-					++dyes;
-				}
+        for (int i = 0; i < input.size(); ++i) {
+            ItemStack stack = input.getItem(i);
+            if (!stack.isEmpty()) {
+                if (Block.byItem(stack.getItem()) instanceof ToolboxBlock) {
+                    ++toolboxes;
+                } else {
+                    if (!stack.is(Tags.Items.DYES)) return false;
+                    ++dyes;
+                }
 
-				if (dyes > 1 || toolboxes > 1) {
-					return false;
-				}
-			}
-		}
+                if (dyes > 1 || toolboxes > 1) {
+                    return false;
+                }
+            }
+        }
 
-		return toolboxes == 1 && dyes == 1;
-	}
+        return toolboxes == 1 && dyes == 1;
+    }
 
-	@Override
-	public ItemStack assemble(CraftingInput input, HolderLookup.Provider registries) {
-		ItemStack toolbox = ItemStack.EMPTY;
-		DyeColor color = DyeColor.BROWN;
+    @Override
+    public ItemStack assemble(CraftingInput input, HolderLookup.Provider registries) {
+        ItemStack toolbox = ItemStack.EMPTY;
+        DyeColor color = DyeColor.BROWN;
 
-		for (int i = 0; i < input.size(); ++i) {
-			ItemStack stack = input.getItem(i);
-			if (!stack.isEmpty()) {
-				if (Block.byItem(stack.getItem()) instanceof ToolboxBlock) {
-					toolbox = stack;
-				} else {
-					DyeColor color1 = TagUtil.getColorFromStack(stack);
-					if (color1 != null) {
-						color = color1;
-					}
-				}
-			}
-		}
+        for (int i = 0; i < input.size(); ++i) {
+            ItemStack stack = input.getItem(i);
+            if (!stack.isEmpty()) {
+                if (Block.byItem(stack.getItem()) instanceof ToolboxBlock) {
+                    toolbox = stack;
+                } else {
+                    DyeColor color1 = TagUtil.getColorFromStack(stack);
+                    if (color1 != null) {
+                        color = color1;
+                    }
+                }
+            }
+        }
 
-		ItemStack dyedToolbox = AllBlocks.TOOLBOXES.get(color)
-			.asStack();
-		if (!ItemUtils.isComponentsPatchEmpty(toolbox)) {
-			dyedToolbox.applyComponents(toolbox.getComponentsPatch());
-		}
+        ItemStack dyedToolbox = AllBlocks.TOOLBOXES.get(color).asStack();
+        if (!ItemUtils.isComponentsPatchEmpty(toolbox)) {
+            dyedToolbox.applyComponents(toolbox.getComponentsPatch());
+        }
 
-		return dyedToolbox;
-	}
+        return dyedToolbox;
+    }
 
-	@Override
-	public boolean canCraftInDimensions(int width, int height) {
-		return width * height >= 2;
-	}
+    @Override
+    public boolean canCraftInDimensions(int width, int height) {
+        return width * height >= 2;
+    }
 
-	@Override
-	public RecipeSerializer<?> getSerializer() {
-		return AllRecipeTypes.TOOLBOX_DYEING.getSerializer();
-	}
-
+    @Override
+    public RecipeSerializer<?> getSerializer() {
+        return AllRecipeTypes.TOOLBOX_DYEING.getSerializer();
+    }
 }

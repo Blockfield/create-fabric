@@ -10,6 +10,9 @@ import com.simibubi.create.foundation.block.IBE;
 import com.simibubi.create.foundation.blockEntity.behaviour.BlockEntityBehaviour;
 import com.simibubi.create.foundation.blockEntity.behaviour.filtering.FilteringBehaviour;
 import com.simibubi.create.foundation.blockEntity.behaviour.inventory.InvManipulationBehaviour;
+import com.simibubi.create.infrastructure.fabric.transfer.TransferUtil;
+
+import io.github.fabricators_of_create.porting_lib.blocks.extensions.ConnectableRedstoneBlock;
 
 import net.createmod.catnip.data.Iterate;
 import net.minecraft.core.BlockPos;
@@ -30,128 +33,140 @@ import net.minecraft.world.level.block.state.properties.AttachFace;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.BooleanProperty;
 
-import io.github.fabricators_of_create.porting_lib.blocks.extensions.ConnectableRedstoneBlock;
-import com.simibubi.create.infrastructure.fabric.transfer.TransferUtil;
+public class SmartObserverBlock extends DirectedDirectionalBlock
+        implements IBE<SmartObserverBlockEntity>, ConnectableRedstoneBlock {
 
-public class SmartObserverBlock extends DirectedDirectionalBlock implements IBE<SmartObserverBlockEntity>, ConnectableRedstoneBlock {
+    public static final BooleanProperty POWERED = BlockStateProperties.POWERED;
 
-	public static final BooleanProperty POWERED = BlockStateProperties.POWERED;
+    public SmartObserverBlock(Properties properties) {
+        super(properties);
+        registerDefaultState(defaultBlockState().setValue(POWERED, false));
+    }
 
-	public SmartObserverBlock(Properties properties) {
-		super(properties);
-		registerDefaultState(defaultBlockState().setValue(POWERED, false));
-	}
+    @Override
+    protected void createBlockStateDefinition(Builder<Block, BlockState> builder) {
+        super.createBlockStateDefinition(builder.add(POWERED));
+    }
 
-	@Override
-	protected void createBlockStateDefinition(Builder<Block, BlockState> builder) {
-		super.createBlockStateDefinition(builder.add(POWERED));
-	}
+    @Override
+    public BlockState getStateForPlacement(BlockPlaceContext context) {
+        BlockState state = defaultBlockState();
 
-	@Override
-	public BlockState getStateForPlacement(BlockPlaceContext context) {
-		BlockState state = defaultBlockState();
+        Direction preferredFacing = null;
+        for (Direction face : context.getNearestLookingDirections()) {
+            BlockPos offsetPos = context.getClickedPos().relative(face);
+            Level world = context.getLevel();
+            boolean canDetect = false;
+            BlockEntity blockEntity = world.getBlockEntity(offsetPos);
 
-		Direction preferredFacing = null;
-		for (Direction face : context.getNearestLookingDirections()) {
-			BlockPos offsetPos = context.getClickedPos()
-				.relative(face);
-			Level world = context.getLevel();
-			boolean canDetect = false;
-			BlockEntity blockEntity = world.getBlockEntity(offsetPos);
+            if (BlockEntityBehaviour.get(blockEntity, TransportedItemStackHandlerBehaviour.TYPE)
+                    != null) canDetect = true;
+            else if (BlockEntityBehaviour.get(blockEntity, FluidTransportBehaviour.TYPE) != null)
+                canDetect = true;
+            else if (TransferUtil.getItemStorage(world, offsetPos, face.getOpposite()) != null
+                    || TransferUtil.getFluidStorage(world, offsetPos, face.getOpposite()) != null)
+                canDetect = true;
+            else if (blockEntity instanceof FunnelBlockEntity) canDetect = true;
 
-			if (BlockEntityBehaviour.get(blockEntity, TransportedItemStackHandlerBehaviour.TYPE) != null)
-				canDetect = true;
-			else if (BlockEntityBehaviour.get(blockEntity, FluidTransportBehaviour.TYPE) != null)
-				canDetect = true;
-			else if (TransferUtil.getItemStorage(world, offsetPos, face.getOpposite()) != null
-					|| TransferUtil.getFluidStorage(world, offsetPos, face.getOpposite()) != null)
-				canDetect = true;
-			else if (blockEntity instanceof FunnelBlockEntity)
-				canDetect = true;
+            if (canDetect) {
+                preferredFacing = face;
+                break;
+            }
+        }
 
-			if (canDetect) {
-				preferredFacing = face;
-				break;
-			}
-		}
+        if (preferredFacing == null) {
+            Direction facing = context.getNearestLookingDirection();
+            preferredFacing =
+                    context.getPlayer() != null && context.getPlayer().isShiftKeyDown()
+                            ? facing
+                            : facing.getOpposite();
+        }
 
-		if (preferredFacing == null) {
-			Direction facing = context.getNearestLookingDirection();
-			preferredFacing = context.getPlayer() != null && context.getPlayer()
-				.isShiftKeyDown() ? facing : facing.getOpposite();
-		}
+        if (preferredFacing.getAxis() == Axis.Y) {
+            state =
+                    state.setValue(
+                            TARGET,
+                            preferredFacing == Direction.UP
+                                    ? AttachFace.CEILING
+                                    : AttachFace.FLOOR);
+            preferredFacing = context.getHorizontalDirection();
+        }
 
-		if (preferredFacing.getAxis() == Axis.Y) {
-			state = state.setValue(TARGET, preferredFacing == Direction.UP ? AttachFace.CEILING : AttachFace.FLOOR);
-			preferredFacing = context.getHorizontalDirection();
-		}
+        return state.setValue(FACING, preferredFacing);
+    }
 
-		return state.setValue(FACING, preferredFacing);
-	}
+    @Override
+    public boolean isSignalSource(BlockState state) {
+        return state.getValue(POWERED);
+    }
 
-	@Override
-	public boolean isSignalSource(BlockState state) {
-		return state.getValue(POWERED);
-	}
+    @Override
+    public int getSignal(
+            BlockState blockState, BlockGetter blockAccess, BlockPos pos, Direction side) {
+        return isSignalSource(blockState)
+                        && (side == null || side != getTargetDirection(blockState).getOpposite())
+                ? 15
+                : 0;
+    }
 
-	@Override
-	public int getSignal(BlockState blockState, BlockGetter blockAccess, BlockPos pos, Direction side) {
-		return isSignalSource(blockState) && (side == null || side != getTargetDirection(blockState)
-			.getOpposite()) ? 15 : 0;
-	}
+    @Override
+    public void tick(BlockState state, ServerLevel worldIn, BlockPos pos, RandomSource random) {
+        worldIn.setBlock(pos, state.setValue(POWERED, false), 2);
+        worldIn.updateNeighborsAt(pos, this);
+    }
 
-	@Override
-	public void tick(BlockState state, ServerLevel worldIn, BlockPos pos, RandomSource random) {
-		worldIn.setBlock(pos, state.setValue(POWERED, false), 2);
-		worldIn.updateNeighborsAt(pos, this);
-	}
+    @Override
+    public boolean canConnectRedstone(
+            BlockState state, BlockGetter world, BlockPos pos, Direction side) {
+        return side != state.getValue(FACING).getOpposite();
+    }
 
-	@Override
-	public boolean canConnectRedstone(BlockState state, BlockGetter world, BlockPos pos, Direction side) {
-		return side != state.getValue(FACING)
-			.getOpposite();
-	}
+    @Override
+    public void onRemove(
+            BlockState state, Level worldIn, BlockPos pos, BlockState newState, boolean isMoving) {
+        IBE.onRemove(state, worldIn, pos, newState);
+    }
 
-	@Override
-	public void onRemove(BlockState state, Level worldIn, BlockPos pos, BlockState newState, boolean isMoving) {
-		IBE.onRemove(state, worldIn, pos, newState);
-	}
+    @Override
+    public void neighborChanged(
+            BlockState state,
+            Level worldIn,
+            BlockPos pos,
+            Block blockIn,
+            BlockPos fromPos,
+            boolean isMoving) {
+        InvManipulationBehaviour behaviour =
+                BlockEntityBehaviour.get(worldIn, pos, InvManipulationBehaviour.TYPE);
+        if (behaviour != null) behaviour.onNeighborChanged(fromPos);
+    }
 
-	@Override
-	public void neighborChanged(BlockState state, Level worldIn, BlockPos pos, Block blockIn, BlockPos fromPos,
-		boolean isMoving) {
-		InvManipulationBehaviour behaviour = BlockEntityBehaviour.get(worldIn, pos, InvManipulationBehaviour.TYPE);
-		if (behaviour != null)
-			behaviour.onNeighborChanged(fromPos);
-	}
+    public void onFunnelTransfer(Level world, BlockPos funnelPos, ItemStack transferred) {
+        for (Direction direction : Iterate.directions) {
+            BlockPos detectorPos = funnelPos.relative(direction);
+            BlockState detectorState = world.getBlockState(detectorPos);
+            if (!AllBlocks.SMART_OBSERVER.has(detectorState)) continue;
+            if (SmartObserverBlock.getTargetDirection(detectorState) != direction.getOpposite())
+                continue;
+            withBlockEntityDo(
+                    world,
+                    detectorPos,
+                    be -> {
+                        FilteringBehaviour filteringBehaviour =
+                                BlockEntityBehaviour.get(be, FilteringBehaviour.TYPE);
+                        if (filteringBehaviour == null) return;
+                        if (!filteringBehaviour.test(transferred)) return;
+                        be.activate(4);
+                    });
+        }
+    }
 
-	public void onFunnelTransfer(Level world, BlockPos funnelPos, ItemStack transferred) {
-		for (Direction direction : Iterate.directions) {
-			BlockPos detectorPos = funnelPos.relative(direction);
-			BlockState detectorState = world.getBlockState(detectorPos);
-			if (!AllBlocks.SMART_OBSERVER.has(detectorState))
-				continue;
-			if (SmartObserverBlock.getTargetDirection(detectorState) != direction.getOpposite())
-				continue;
-			withBlockEntityDo(world, detectorPos, be -> {
-				FilteringBehaviour filteringBehaviour = BlockEntityBehaviour.get(be, FilteringBehaviour.TYPE);
-				if (filteringBehaviour == null)
-					return;
-				if (!filteringBehaviour.test(transferred))
-					return;
-				be.activate(4);
-			});
-		}
-	}
+    @Override
+    public Class<SmartObserverBlockEntity> getBlockEntityClass() {
+        return SmartObserverBlockEntity.class;
+    }
 
-	@Override
-	public Class<SmartObserverBlockEntity> getBlockEntityClass() {
-		return SmartObserverBlockEntity.class;
-	}
-
-	@Override
-	public BlockEntityType<? extends SmartObserverBlockEntity> getBlockEntityType() {
-		return AllBlockEntityTypes.SMART_OBSERVER.get();
-	}
-
+    @Override
+    public BlockEntityType<? extends SmartObserverBlockEntity> getBlockEntityType() {
+        return AllBlockEntityTypes.SMART_OBSERVER.get();
+    }
 }

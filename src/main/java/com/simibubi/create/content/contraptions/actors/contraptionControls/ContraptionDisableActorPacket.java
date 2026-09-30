@@ -1,12 +1,12 @@
 package com.simibubi.create.content.contraptions.actors.contraptionControls;
 
-import java.util.List;
-
 import com.simibubi.create.AllPackets;
 import com.simibubi.create.content.contraptions.AbstractContraptionEntity;
 import com.simibubi.create.content.contraptions.Contraption;
-import net.createmod.catnip.net.base.ClientboundPacketPayload;
 
+import net.createmod.catnip.net.base.ClientboundPacketPayload;
+import net.fabricmc.api.EnvType;
+import net.fabricmc.api.Environment;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
@@ -14,42 +14,81 @@ import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.item.ItemStack;
 
-import net.fabricmc.api.EnvType;
-import net.fabricmc.api.Environment;
+import java.util.List;
 
-public record ContraptionDisableActorPacket(int entityId, ItemStack filter, boolean enable) implements ClientboundPacketPayload {
-	public static final StreamCodec<RegistryFriendlyByteBuf, com.simibubi.create.content.contraptions.actors.contraptionControls.ContraptionDisableActorPacket> STREAM_CODEC = StreamCodec.composite(
-			ByteBufCodecs.INT, com.simibubi.create.content.contraptions.actors.contraptionControls.ContraptionDisableActorPacket::entityId,
-			ItemStack.OPTIONAL_STREAM_CODEC, com.simibubi.create.content.contraptions.actors.contraptionControls.ContraptionDisableActorPacket::filter,
-			ByteBufCodecs.BOOL, com.simibubi.create.content.contraptions.actors.contraptionControls.ContraptionDisableActorPacket::enable,
-	        com.simibubi.create.content.contraptions.actors.contraptionControls.ContraptionDisableActorPacket::new
-	);
+public record ContraptionDisableActorPacket(int entityId, ItemStack filter, boolean enable)
+        implements ClientboundPacketPayload {
+    public static final StreamCodec<
+                    RegistryFriendlyByteBuf,
+                    com.simibubi
+                            .create
+                            .content
+                            .contraptions
+                            .actors
+                            .contraptionControls
+                            .ContraptionDisableActorPacket>
+            STREAM_CODEC =
+                    StreamCodec.composite(
+                            ByteBufCodecs.INT,
+                            com.simibubi
+                                            .create
+                                            .content
+                                            .contraptions
+                                            .actors
+                                            .contraptionControls
+                                            .ContraptionDisableActorPacket
+                                    ::entityId,
+                            ItemStack.OPTIONAL_STREAM_CODEC,
+                            com.simibubi
+                                            .create
+                                            .content
+                                            .contraptions
+                                            .actors
+                                            .contraptionControls
+                                            .ContraptionDisableActorPacket
+                                    ::filter,
+                            ByteBufCodecs.BOOL,
+                            com.simibubi
+                                            .create
+                                            .content
+                                            .contraptions
+                                            .actors
+                                            .contraptionControls
+                                            .ContraptionDisableActorPacket
+                                    ::enable,
+                            com.simibubi
+                                            .create
+                                            .content
+                                            .contraptions
+                                            .actors
+                                            .contraptionControls
+                                            .ContraptionDisableActorPacket
+                                    ::new);
 
-	@Override
-	@Environment(EnvType.CLIENT)
-	public void handle(LocalPlayer player) {
-		Entity entityByID = player.clientLevel.getEntity(entityId);
-		if (!(entityByID instanceof AbstractContraptionEntity ace))
-			return;
+    @Override
+    @Environment(EnvType.CLIENT)
+    public void handle(LocalPlayer player) {
+        Entity entityByID = player.clientLevel.getEntity(entityId);
+        if (!(entityByID instanceof AbstractContraptionEntity ace)) return;
 
-		Contraption contraption = ace.getContraption();
-		List<ItemStack> disabledActors = contraption.getDisabledActors();
-		if (filter.isEmpty())
-			disabledActors.clear();
+        Contraption contraption = ace.getContraption();
+        List<ItemStack> disabledActors = contraption.getDisabledActors();
+        if (filter.isEmpty()) disabledActors.clear();
 
-		if (!enable) {
-			disabledActors.add(filter);
-			contraption.setActorsActive(filter, false);
-			return;
-		}
+        if (!enable) {
+            disabledActors.add(filter);
+            contraption.setActorsActive(filter, false);
+            return;
+        }
 
-		disabledActors.removeIf(next -> ContraptionControlsMovement.isSameFilter(next, filter) || next.isEmpty());
+        disabledActors.removeIf(
+                next -> ContraptionControlsMovement.isSameFilter(next, filter) || next.isEmpty());
 
-		contraption.setActorsActive(filter, true);
-	}
+        contraption.setActorsActive(filter, true);
+    }
 
-	@Override
-	public PacketTypeProvider getTypeProvider() {
-		return AllPackets.CONTRAPTION_ACTOR_TOGGLE;
-	}
+    @Override
+    public PacketTypeProvider getTypeProvider() {
+        return AllPackets.CONTRAPTION_ACTOR_TOGGLE;
+    }
 }

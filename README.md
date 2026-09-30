@@ -36,3 +36,15 @@ Looking to make an addon for Create? A template mod for a Fabric addon can be fo
 [here](https://github.com/Fabricators-of-Create/create-fabric-addon-template),
 and a template for a multi-loader addon with Architectury can be found
 [here](https://github.com/Fabricators-of-Create/create-multiloader-addon-template).
+
+## Developer checks
+
+Install Python 3.12+, Node.js 22 and Just 1.57.0, native JDK 21 (`JAVA_HOME`) on Linux or Windows. Quality tools stay in the project cache.
+
+```sh
+just setup
+just check
+just format
+```
+
+`just --list` lists supported build and application commands.

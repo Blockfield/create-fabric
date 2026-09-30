@@ -1,7 +1,5 @@
 package com.simibubi.create.content.trains.schedule.condition;
 
-import java.util.List;
-
 import com.google.common.collect.ImmutableList;
 import com.simibubi.create.Create;
 import com.simibubi.create.content.logistics.filter.FilterItemStack;
@@ -11,17 +9,13 @@ import com.simibubi.create.foundation.gui.ModularGuiLineBuilder;
 import com.simibubi.create.foundation.utility.CreateLang;
 
 import net.createmod.catnip.lang.Lang;
-
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.fabricmc.fabric.api.transfer.v1.item.ItemVariant;
 import net.fabricmc.fabric.api.transfer.v1.storage.Storage;
-
 import net.fabricmc.fabric.api.transfer.v1.storage.StorageView;
-
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.HolderLookup;
-import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
@@ -29,124 +23,135 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 
-import net.fabricmc.api.EnvType;
-import net.fabricmc.api.Environment;
-import net.fabricmc.fabric.api.transfer.v1.item.ItemVariant;
-import net.fabricmc.fabric.api.transfer.v1.storage.StorageView;
-import net.fabricmc.fabric.api.transfer.v1.transaction.Transaction;
-
-import com.simibubi.create.infrastructure.fabric.transfer.TransferUtil;
+import java.util.List;
 
 public class ItemThresholdCondition extends CargoThresholdCondition {
 
-	private FilterItemStack stack = FilterItemStack.empty();
+    private FilterItemStack stack = FilterItemStack.empty();
 
-	@Override
-	protected Component getUnit() {
-		return Component.literal(inStacks() ? "\u25A4" : "");
-	}
+    @Override
+    protected Component getUnit() {
+        return Component.literal(inStacks() ? "\u25A4" : "");
+    }
 
-	@Override
-	protected ItemStack getIcon() {
-		return stack.item();
-	}
+    @Override
+    protected ItemStack getIcon() {
+        return stack.item();
+    }
 
-	@Override
-	protected boolean test(Level level, Train train, CompoundTag context) {
-		Ops operator = getOperator();
-		long target = getThreshold();
-		boolean stacks = inStacks();
+    @Override
+    protected boolean test(Level level, Train train, CompoundTag context) {
+        Ops operator = getOperator();
+        long target = getThreshold();
+        boolean stacks = inStacks();
 
-		long foundItems = 0;
-		for (Carriage carriage : train.carriages) {
-			Storage<ItemVariant> items = carriage.storage.getAllItems();
-			for (StorageView<ItemVariant> view : items.nonEmptyViews()) {
-				ItemVariant variant = view.getResource();
-				ItemStack stackInSlot = variant.toStack();
-				if (!stack.test(level, stackInSlot))
-					continue;
+        long foundItems = 0;
+        for (Carriage carriage : train.carriages) {
+            Storage<ItemVariant> items = carriage.storage.getAllItems();
+            for (StorageView<ItemVariant> view : items.nonEmptyViews()) {
+                ItemVariant variant = view.getResource();
+                ItemStack stackInSlot = variant.toStack();
+                if (!stack.test(level, stackInSlot)) continue;
 
-				if (stacks)
-					foundItems += view.getAmount() == stackInSlot.getMaxStackSize() ? 1 : 0;
-				else
-					foundItems += view.getAmount();
-			}
-		}
+                if (stacks) foundItems += view.getAmount() == stackInSlot.getMaxStackSize() ? 1 : 0;
+                else foundItems += view.getAmount();
+            }
+        }
 
-		requestStatusToUpdate(foundItems, context);
-		return operator.test(foundItems, target);
-	}
+        requestStatusToUpdate(foundItems, context);
+        return operator.test(foundItems, target);
+    }
 
-	@Override
-	protected void writeAdditional(HolderLookup.Provider registries, CompoundTag tag) {
-		super.writeAdditional(registries, tag);
-		tag.put("Item", stack.serializeNBT(registries));
-	}
+    @Override
+    protected void writeAdditional(HolderLookup.Provider registries, CompoundTag tag) {
+        super.writeAdditional(registries, tag);
+        tag.put("Item", stack.serializeNBT(registries));
+    }
 
-	@Override
-	protected void readAdditional(HolderLookup.Provider registries, CompoundTag tag) {
-		super.readAdditional(registries, tag);
-		if (tag.contains("Item"))
-			stack = FilterItemStack.of(registries, tag.getCompound("Item"));
-	}
+    @Override
+    protected void readAdditional(HolderLookup.Provider registries, CompoundTag tag) {
+        super.readAdditional(registries, tag);
+        if (tag.contains("Item")) stack = FilterItemStack.of(registries, tag.getCompound("Item"));
+    }
 
-	@Override
-	public boolean tickCompletion(Level level, Train train, CompoundTag context) {
-		return super.tickCompletion(level, train, context);
-	}
+    @Override
+    public boolean tickCompletion(Level level, Train train, CompoundTag context) {
+        return super.tickCompletion(level, train, context);
+    }
 
-	@Override
-	public void setItem(int slot, ItemStack stack) {
-		this.stack = FilterItemStack.of(stack);
-	}
+    @Override
+    public void setItem(int slot, ItemStack stack) {
+        this.stack = FilterItemStack.of(stack);
+    }
 
-	@Override
-	public ItemStack getItem(int slot) {
-		return stack.item();
-	}
+    @Override
+    public ItemStack getItem(int slot) {
+        return stack.item();
+    }
 
-	@Override
-	public List<Component> getTitleAs(String type) {
-		return ImmutableList.of(
-			CreateLang.translateDirect("schedule.condition.threshold.train_holds",
-				CreateLang.translateDirect("schedule.condition.threshold." + Lang.asId(getOperator().name()))),
-			CreateLang.translateDirect("schedule.condition.threshold.x_units_of_item", getThreshold(),
-				CreateLang.translateDirect("schedule.condition.threshold." + (inStacks() ? "stacks" : "items")),
-				stack.isEmpty() ? CreateLang.translateDirect("schedule.condition.threshold.anything")
-					: stack.isFilterItem()
-						? CreateLang.translateDirect("schedule.condition.threshold.matching_content")
-						: stack.item().getHoverName())
-				.withStyle(ChatFormatting.DARK_AQUA));
-	}
+    @Override
+    public List<Component> getTitleAs(String type) {
+        return ImmutableList.of(
+                CreateLang.translateDirect(
+                        "schedule.condition.threshold.train_holds",
+                        CreateLang.translateDirect(
+                                "schedule.condition.threshold." + Lang.asId(getOperator().name()))),
+                CreateLang.translateDirect(
+                                "schedule.condition.threshold.x_units_of_item",
+                                getThreshold(),
+                                CreateLang.translateDirect(
+                                        "schedule.condition.threshold."
+                                                + (inStacks() ? "stacks" : "items")),
+                                stack.isEmpty()
+                                        ? CreateLang.translateDirect(
+                                                "schedule.condition.threshold.anything")
+                                        : stack.isFilterItem()
+                                                ? CreateLang.translateDirect(
+                                                        "schedule.condition.threshold.matching_content")
+                                                : stack.item().getHoverName())
+                        .withStyle(ChatFormatting.DARK_AQUA));
+    }
 
-	private boolean inStacks() {
-		return intData("Measure") == 1;
-	}
+    private boolean inStacks() {
+        return intData("Measure") == 1;
+    }
 
-	@Override
-	public ResourceLocation getId() {
-		return Create.asResource("item_threshold");
-	}
+    @Override
+    public ResourceLocation getId() {
+        return Create.asResource("item_threshold");
+    }
 
-	@Override
-	@Environment(EnvType.CLIENT)
-	public void initConfigurationWidgets(ModularGuiLineBuilder builder) {
-		super.initConfigurationWidgets(builder);
-		builder.addSelectionScrollInput(71, 50, (i, l) -> {
-			i.forOptions(ImmutableList.of(CreateLang.translateDirect("schedule.condition.threshold.items"),
-				CreateLang.translateDirect("schedule.condition.threshold.stacks")))
-				.titled(CreateLang.translateDirect("schedule.condition.threshold.item_measure"));
-		}, "Measure");
-	}
+    @Override
+    @Environment(EnvType.CLIENT)
+    public void initConfigurationWidgets(ModularGuiLineBuilder builder) {
+        super.initConfigurationWidgets(builder);
+        builder.addSelectionScrollInput(
+                71,
+                50,
+                (i, l) -> {
+                    i.forOptions(
+                                    ImmutableList.of(
+                                            CreateLang.translateDirect(
+                                                    "schedule.condition.threshold.items"),
+                                            CreateLang.translateDirect(
+                                                    "schedule.condition.threshold.stacks")))
+                            .titled(
+                                    CreateLang.translateDirect(
+                                            "schedule.condition.threshold.item_measure"));
+                },
+                "Measure");
+    }
 
-	@Override
-	public MutableComponent getWaitingStatus(Level level, Train train, CompoundTag tag) {
-		long lastDisplaySnapshot = getLastDisplaySnapshot(tag);
-		if (lastDisplaySnapshot == -1)
-            return Component.empty();
-		int offset = getOperator() == Ops.LESS ? -1 : getOperator() == Ops.GREATER ? 1 : 0;
-		return CreateLang.translateDirect("schedule.condition.threshold.status", lastDisplaySnapshot,
-			Math.max(0, getThreshold() + offset),
-			CreateLang.translateDirect("schedule.condition.threshold." + (inStacks() ? "stacks" : "items")));
-	}
+    @Override
+    public MutableComponent getWaitingStatus(Level level, Train train, CompoundTag tag) {
+        long lastDisplaySnapshot = getLastDisplaySnapshot(tag);
+        if (lastDisplaySnapshot == -1) return Component.empty();
+        int offset = getOperator() == Ops.LESS ? -1 : getOperator() == Ops.GREATER ? 1 : 0;
+        return CreateLang.translateDirect(
+                "schedule.condition.threshold.status",
+                lastDisplaySnapshot,
+                Math.max(0, getThreshold() + offset),
+                CreateLang.translateDirect(
+                        "schedule.condition.threshold." + (inStacks() ? "stacks" : "items")));
+    }
 }

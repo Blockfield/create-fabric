@@ -12,6 +12,7 @@ Fabric-версия 1.20.1 (`git log` этого же репозитория, в
 Fabricators решали ту же проблему на 1.20.1.
 
 ## Железные правила
+
 1. **Не выдумывай API.** Перед использованием метода/класса из Fabric API, Porting Lib, Flywheel,
    Registrate — проверь его `javap -p` по jar из `~/.gradle/caches/` (найти: `find ~/.gradle/caches -name '*porting*blocks*1.21.1*.jar'`)
    или прочитай исходники в `.gradle/loom-cache/`/sources-jar. Ванильные имена не меняются.
@@ -31,6 +32,7 @@ Fabricators решали ту же проблему на 1.20.1.
    Коротко, по-русски.
 
 ## Частые замены (уже применённые в других файлах ветки — ищи образцы grep'ом)
+
 - `new ResourceLocation(ns, path)` → `ResourceLocation.fromNamespaceAndPath(ns, path)`; `new ResourceLocation(s)` → `ResourceLocation.parse(s)`.
 - `net.neoforged.neoforge.common.Tags.Items.*` → `io.github.fabricators_of_create.porting_lib.tags.Tags.Items.*` (проверь наличие тега javap'ом; нет — `ConventionalItemTags` из fabric-convention-tags-v2).
 - `Capabilities.ItemHandler/FluidHandler` → `ItemStorage.SIDED` / `FluidStorage.SIDED` (Fabric transfer API) через уже существующие обёртки Porting Lib `transfer`.

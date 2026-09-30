@@ -25,85 +25,85 @@ import net.minecraft.world.phys.Vec3;
 
 public class BlazeBurnerHandler {
 
-	public static boolean onThrowableImpact(io.github.fabricators_of_create.porting_lib.entity.events.ProjectileImpactEvent event) {
-		splashExtinguishesBurner(event.getProjectile(), event.getRayTraceResult());
-		return thrownEggsGetEatenByBurner(event.getProjectile(), event.getRayTraceResult());
-	}
+    public static boolean onThrowableImpact(
+            io.github.fabricators_of_create.porting_lib.entity.events.ProjectileImpactEvent event) {
+        splashExtinguishesBurner(event.getProjectile(), event.getRayTraceResult());
+        return thrownEggsGetEatenByBurner(event.getProjectile(), event.getRayTraceResult());
+    }
 
-	public static boolean thrownEggsGetEatenByBurner(Projectile projectile, HitResult hitResult) {
-//		Projectile projectile = event.getProjectile();
-		if (!(projectile instanceof ThrownEgg))
-			return false;
+    public static boolean thrownEggsGetEatenByBurner(Projectile projectile, HitResult hitResult) {
+        //		Projectile projectile = event.getProjectile();
+        if (!(projectile instanceof ThrownEgg)) return false;
 
-		if (hitResult
-			.getType() != HitResult.Type.BLOCK)
-			return false;
+        if (hitResult.getType() != HitResult.Type.BLOCK) return false;
 
-		BlockEntity blockEntity = projectile.level()
-			.getBlockEntity(BlockPos.containing(hitResult
-				.getLocation()));
-		if (!(blockEntity instanceof BlazeBurnerBlockEntity heater)) {
-			return false;
-		}
+        BlockEntity blockEntity =
+                projectile.level().getBlockEntity(BlockPos.containing(hitResult.getLocation()));
+        if (!(blockEntity instanceof BlazeBurnerBlockEntity heater)) {
+            return false;
+        }
 
-//		event.setCanceled(true);
-		projectile.setDeltaMovement(Vec3.ZERO);
-		projectile.discard();
+        //		event.setCanceled(true);
+        projectile.setDeltaMovement(Vec3.ZERO);
+        projectile.discard();
 
-		Level world = projectile.level();
-		if (world.isClientSide)
-			return false;
+        Level world = projectile.level();
+        if (world.isClientSide) return false;
 
-		if (!heater.isCreative()) {
-			if (heater.activeFuel != FuelType.SPECIAL) {
-				heater.activeFuel = FuelType.NORMAL;
-				heater.remainingBurnTime =
-					Mth.clamp(heater.remainingBurnTime + 80, 0, BlazeBurnerBlockEntity.MAX_HEAT_CAPACITY);
-				heater.updateBlockState();
-				heater.notifyUpdate();
-			}
-		}
+        if (!heater.isCreative()) {
+            if (heater.activeFuel != FuelType.SPECIAL) {
+                heater.activeFuel = FuelType.NORMAL;
+                heater.remainingBurnTime =
+                        Mth.clamp(
+                                heater.remainingBurnTime + 80,
+                                0,
+                                BlazeBurnerBlockEntity.MAX_HEAT_CAPACITY);
+                heater.updateBlockState();
+                heater.notifyUpdate();
+            }
+        }
 
-		AllSoundEvents.BLAZE_MUNCH.playOnServer(world, heater.getBlockPos());
-		return true;
-	}
+        AllSoundEvents.BLAZE_MUNCH.playOnServer(world, heater.getBlockPos());
+        return true;
+    }
 
-	public static void splashExtinguishesBurner(Projectile projectile, HitResult hitResult) {
-//		Projectile projectile = event.getProjectile();
-		if (projectile.level().isClientSide)
-			return;
-		if (!(projectile instanceof ThrownPotion entity))
-			return;
+    public static void splashExtinguishesBurner(Projectile projectile, HitResult hitResult) {
+        //		Projectile projectile = event.getProjectile();
+        if (projectile.level().isClientSide) return;
+        if (!(projectile instanceof ThrownPotion entity)) return;
 
-		if (hitResult
-			.getType() != HitResult.Type.BLOCK)
-			return;
+        if (hitResult.getType() != HitResult.Type.BLOCK) return;
 
-		ItemStack stack = entity.getItem();
-		PotionContents potionContents = stack.get(DataComponents.POTION_CONTENTS);
-		if (potionContents != null && potionContents.is(Potions.WATER) && !potionContents.hasEffects()) {
-			BlockHitResult result = (BlockHitResult) hitResult;
-			Level world = entity.level();
-			Direction face = result.getDirection();
-			BlockPos pos = result.getBlockPos()
-				.relative(face);
+        ItemStack stack = entity.getItem();
+        PotionContents potionContents = stack.get(DataComponents.POTION_CONTENTS);
+        if (potionContents != null
+                && potionContents.is(Potions.WATER)
+                && !potionContents.hasEffects()) {
+            BlockHitResult result = (BlockHitResult) hitResult;
+            Level world = entity.level();
+            Direction face = result.getDirection();
+            BlockPos pos = result.getBlockPos().relative(face);
 
-			extinguishLitBurners(world, pos, face);
-			extinguishLitBurners(world, pos.relative(face.getOpposite()), face);
+            extinguishLitBurners(world, pos, face);
+            extinguishLitBurners(world, pos.relative(face.getOpposite()), face);
 
-			for (Direction face1 : Direction.Plane.HORIZONTAL) {
-				extinguishLitBurners(world, pos.relative(face1), face1);
-			}
-		}
-	}
+            for (Direction face1 : Direction.Plane.HORIZONTAL) {
+                extinguishLitBurners(world, pos.relative(face1), face1);
+            }
+        }
+    }
 
-	private static void extinguishLitBurners(Level world, BlockPos pos, Direction direction) {
-		BlockState state = world.getBlockState(pos);
-		if (AllBlocks.LIT_BLAZE_BURNER.has(state)) {
-			world.playSound(null, pos, SoundEvents.FIRE_EXTINGUISH, SoundSource.BLOCKS, 0.5F,
-				2.6F + (world.random.nextFloat() - world.random.nextFloat()) * 0.8F);
-			world.setBlockAndUpdate(pos, AllBlocks.BLAZE_BURNER.getDefaultState());
-		}
-	}
-
+    private static void extinguishLitBurners(Level world, BlockPos pos, Direction direction) {
+        BlockState state = world.getBlockState(pos);
+        if (AllBlocks.LIT_BLAZE_BURNER.has(state)) {
+            world.playSound(
+                    null,
+                    pos,
+                    SoundEvents.FIRE_EXTINGUISH,
+                    SoundSource.BLOCKS,
+                    0.5F,
+                    2.6F + (world.random.nextFloat() - world.random.nextFloat()) * 0.8F);
+            world.setBlockAndUpdate(pos, AllBlocks.BLAZE_BURNER.getDefaultState());
+        }
+    }
 }

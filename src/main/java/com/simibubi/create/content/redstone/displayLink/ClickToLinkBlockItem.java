@@ -8,12 +8,11 @@ import com.simibubi.create.foundation.block.IBE;
 import com.simibubi.create.foundation.utility.CreateLang;
 
 import io.netty.buffer.ByteBuf;
+
 import net.createmod.catnip.nbt.NBTHelper;
 import net.createmod.catnip.outliner.Outliner;
-
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
@@ -21,7 +20,6 @@ import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.NbtUtils;
 import net.minecraft.network.codec.StreamCodec;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
@@ -39,169 +37,170 @@ import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.shapes.VoxelShape;
 
-import net.fabricmc.api.EnvType;
-import net.fabricmc.api.Environment;
-
 public abstract class ClickToLinkBlockItem extends BlockItem {
-	public ClickToLinkBlockItem(Block pBlock, Properties pProperties) {
-		super(pBlock, pProperties);
-	}
+    public ClickToLinkBlockItem(Block pBlock, Properties pProperties) {
+        super(pBlock, pProperties);
+    }
 
-	public static InteractionResult linkableItemAlwaysPlacesWhenUsed(Player player, Level level, InteractionHand hand, BlockHitResult hit) {
-		ItemStack usedItem = player.getItemInHand(hand);
-		if (!(usedItem.getItem() instanceof ClickToLinkBlockItem blockItem))
-			return InteractionResult.PASS;
-		if (level.getBlockState(hit.getBlockPos()).is(blockItem.getBlock()))
-			return InteractionResult.PASS;
+    public static InteractionResult linkableItemAlwaysPlacesWhenUsed(
+            Player player, Level level, InteractionHand hand, BlockHitResult hit) {
+        ItemStack usedItem = player.getItemInHand(hand);
+        if (!(usedItem.getItem() instanceof ClickToLinkBlockItem blockItem))
+            return InteractionResult.PASS;
+        if (level.getBlockState(hit.getBlockPos()).is(blockItem.getBlock()))
+            return InteractionResult.PASS;
 
-		return InteractionResult.FAIL;
-	}
+        return InteractionResult.FAIL;
+    }
 
-	@Override
-	public InteractionResult useOn(UseOnContext pContext) {
-		ItemStack stack = pContext.getItemInHand();
-		BlockPos pos = pContext.getClickedPos();
-		Level level = pContext.getLevel();
-		BlockState state = level.getBlockState(pos);
-		Player player = pContext.getPlayer();
-		String msgKey = getMessageTranslationKey();
-		int maxDistance = getMaxDistanceFromSelection();
+    @Override
+    public InteractionResult useOn(UseOnContext pContext) {
+        ItemStack stack = pContext.getItemInHand();
+        BlockPos pos = pContext.getClickedPos();
+        Level level = pContext.getLevel();
+        BlockState state = level.getBlockState(pos);
+        Player player = pContext.getPlayer();
+        String msgKey = getMessageTranslationKey();
+        int maxDistance = getMaxDistanceFromSelection();
 
-		if (player == null)
-			return InteractionResult.FAIL;
+        if (player == null) return InteractionResult.FAIL;
 
-		if (player.isShiftKeyDown() && stack.has(AllDataComponents.CLICK_TO_LINK_DATA)) {
-			if (level.isClientSide)
-				return InteractionResult.SUCCESS;
-			player.displayClientMessage(CreateLang.translateDirect(msgKey + ".clear"), true);
-			stack.remove(AllDataComponents.CLICK_TO_LINK_DATA);
-			stack.remove(DataComponents.BLOCK_ENTITY_DATA);
-			return InteractionResult.SUCCESS;
-		}
+        if (player.isShiftKeyDown() && stack.has(AllDataComponents.CLICK_TO_LINK_DATA)) {
+            if (level.isClientSide) return InteractionResult.SUCCESS;
+            player.displayClientMessage(CreateLang.translateDirect(msgKey + ".clear"), true);
+            stack.remove(AllDataComponents.CLICK_TO_LINK_DATA);
+            stack.remove(DataComponents.BLOCK_ENTITY_DATA);
+            return InteractionResult.SUCCESS;
+        }
 
-		ResourceLocation placedDim = level.dimension()
-			.location();
+        ResourceLocation placedDim = level.dimension().location();
 
-		if (!stack.has(AllDataComponents.CLICK_TO_LINK_DATA)) {
-			if (!isValidTarget(level, pos)) {
-				if (placeWhenInvalid()) {
-					InteractionResult useOn = super.useOn(pContext);
-					if (level.isClientSide || useOn == InteractionResult.FAIL)
-						return useOn;
+        if (!stack.has(AllDataComponents.CLICK_TO_LINK_DATA)) {
+            if (!isValidTarget(level, pos)) {
+                if (placeWhenInvalid()) {
+                    InteractionResult useOn = super.useOn(pContext);
+                    if (level.isClientSide || useOn == InteractionResult.FAIL) return useOn;
 
-					ItemStack itemInHand = player.getItemInHand(pContext.getHand());
-					if (!itemInHand.isEmpty()) {
-						stack.remove(AllDataComponents.CLICK_TO_LINK_DATA);
-						stack.remove(DataComponents.BLOCK_ENTITY_DATA);
-					}
-					return useOn;
-				}
+                    ItemStack itemInHand = player.getItemInHand(pContext.getHand());
+                    if (!itemInHand.isEmpty()) {
+                        stack.remove(AllDataComponents.CLICK_TO_LINK_DATA);
+                        stack.remove(DataComponents.BLOCK_ENTITY_DATA);
+                    }
+                    return useOn;
+                }
 
-				if (level.isClientSide)
-					AllSoundEvents.DENY.playFrom(player);
-				player.displayClientMessage(CreateLang.translateDirect(msgKey + ".invalid"), true);
-				return InteractionResult.FAIL;
-			}
+                if (level.isClientSide) AllSoundEvents.DENY.playFrom(player);
+                player.displayClientMessage(CreateLang.translateDirect(msgKey + ".invalid"), true);
+                return InteractionResult.FAIL;
+            }
 
-			if (level.isClientSide)
-				return InteractionResult.SUCCESS;
+            if (level.isClientSide) return InteractionResult.SUCCESS;
 
-			player.displayClientMessage(CreateLang.translateDirect(msgKey + ".set"), true);
-			stack.set(AllDataComponents.CLICK_TO_LINK_DATA, new ClickToLinkData(pos, placedDim));
-			return InteractionResult.SUCCESS;
-		}
+            player.displayClientMessage(CreateLang.translateDirect(msgKey + ".set"), true);
+            stack.set(AllDataComponents.CLICK_TO_LINK_DATA, new ClickToLinkData(pos, placedDim));
+            return InteractionResult.SUCCESS;
+        }
 
-		ClickToLinkData data = stack.get(AllDataComponents.CLICK_TO_LINK_DATA);
-		//noinspection DataFlowIssue
-		BlockPos selectedPos = data.selectedPos();
-		ResourceLocation selectedDim = data.selectedDim();
-		BlockPos placedPos = pos.relative(pContext.getClickedFace(), state.canBeReplaced() ? 0 : 1);
+        ClickToLinkData data = stack.get(AllDataComponents.CLICK_TO_LINK_DATA);
+        //noinspection DataFlowIssue
+        BlockPos selectedPos = data.selectedPos();
+        ResourceLocation selectedDim = data.selectedDim();
+        BlockPos placedPos = pos.relative(pContext.getClickedFace(), state.canBeReplaced() ? 0 : 1);
 
-		if (maxDistance != -1 && (!selectedPos.closerThan(placedPos, maxDistance) || !selectedDim.equals(placedDim))) {
-			player.displayClientMessage(CreateLang.translateDirect(msgKey + ".too_far")
-				.withStyle(ChatFormatting.RED), true);
-			return InteractionResult.FAIL;
-		}
+        if (maxDistance != -1
+                && (!selectedPos.closerThan(placedPos, maxDistance)
+                        || !selectedDim.equals(placedDim))) {
+            player.displayClientMessage(
+                    CreateLang.translateDirect(msgKey + ".too_far").withStyle(ChatFormatting.RED),
+                    true);
+            return InteractionResult.FAIL;
+        }
 
-		CompoundTag beTag = new CompoundTag();
-		beTag.put("TargetOffset", NbtUtils.writeBlockPos(selectedPos.subtract(placedPos)));
-		NBTHelper.writeResourceLocation(beTag, "TargetDimension", selectedDim);
-		BlockEntity.addEntityType(beTag, ((IBE<?>) this.getBlock()).getBlockEntityType());
-		stack.set(DataComponents.BLOCK_ENTITY_DATA, CustomData.of(beTag));
+        CompoundTag beTag = new CompoundTag();
+        beTag.put("TargetOffset", NbtUtils.writeBlockPos(selectedPos.subtract(placedPos)));
+        NBTHelper.writeResourceLocation(beTag, "TargetDimension", selectedDim);
+        BlockEntity.addEntityType(beTag, ((IBE<?>) this.getBlock()).getBlockEntityType());
+        stack.set(DataComponents.BLOCK_ENTITY_DATA, CustomData.of(beTag));
 
-		InteractionResult useOn = super.useOn(pContext);
-		if (level.isClientSide || useOn == InteractionResult.FAIL)
-			return useOn;
+        InteractionResult useOn = super.useOn(pContext);
+        if (level.isClientSide || useOn == InteractionResult.FAIL) return useOn;
 
-		ItemStack itemInHand = player.getItemInHand(pContext.getHand());
-		if (!itemInHand.isEmpty()) {
-			stack.remove(AllDataComponents.CLICK_TO_LINK_DATA);
-			stack.remove(DataComponents.BLOCK_ENTITY_DATA);
-		}
-		player.displayClientMessage(CreateLang.translateDirect(msgKey + ".success")
-			.withStyle(ChatFormatting.GREEN), true);
-		return useOn;
-	}
+        ItemStack itemInHand = player.getItemInHand(pContext.getHand());
+        if (!itemInHand.isEmpty()) {
+            stack.remove(AllDataComponents.CLICK_TO_LINK_DATA);
+            stack.remove(DataComponents.BLOCK_ENTITY_DATA);
+        }
+        player.displayClientMessage(
+                CreateLang.translateDirect(msgKey + ".success").withStyle(ChatFormatting.GREEN),
+                true);
+        return useOn;
+    }
 
-	private static BlockPos lastShownPos = null;
-	private static AABB lastShownAABB = null;
+    private static BlockPos lastShownPos = null;
+    private static AABB lastShownAABB = null;
 
-	@Environment(EnvType.CLIENT)
-	public static void clientTick() {
-		Player player = Minecraft.getInstance().player;
-		if (player == null)
-			return;
-		ItemStack heldItemMainhand = player.getMainHandItem();
-		if (!(heldItemMainhand.getItem() instanceof ClickToLinkBlockItem blockItem))
-			return;
-		if (!heldItemMainhand.has(AllDataComponents.CLICK_TO_LINK_DATA))
-			return;
+    @Environment(EnvType.CLIENT)
+    public static void clientTick() {
+        Player player = Minecraft.getInstance().player;
+        if (player == null) return;
+        ItemStack heldItemMainhand = player.getMainHandItem();
+        if (!(heldItemMainhand.getItem() instanceof ClickToLinkBlockItem blockItem)) return;
+        if (!heldItemMainhand.has(AllDataComponents.CLICK_TO_LINK_DATA)) return;
 
-		//noinspection DataFlowIssue
-		BlockPos selectedPos = heldItemMainhand.get(AllDataComponents.CLICK_TO_LINK_DATA).selectedPos();
+        //noinspection DataFlowIssue
+        BlockPos selectedPos =
+                heldItemMainhand.get(AllDataComponents.CLICK_TO_LINK_DATA).selectedPos();
 
-		if (!selectedPos.equals(lastShownPos)) {
-			lastShownAABB = blockItem.getSelectionBounds(selectedPos);
-			lastShownPos = selectedPos;
-		}
+        if (!selectedPos.equals(lastShownPos)) {
+            lastShownAABB = blockItem.getSelectionBounds(selectedPos);
+            lastShownPos = selectedPos;
+        }
 
-		Outliner.getInstance().showAABB("target", lastShownAABB)
-			.colored(0xffcb74)
-			.lineWidth(1 / 16f);
-	}
+        Outliner.getInstance()
+                .showAABB("target", lastShownAABB)
+                .colored(0xffcb74)
+                .lineWidth(1 / 16f);
+    }
 
-	public abstract int getMaxDistanceFromSelection();
+    public abstract int getMaxDistanceFromSelection();
 
-	public abstract String getMessageTranslationKey();
+    public abstract String getMessageTranslationKey();
 
-	public boolean placeWhenInvalid() {
-		return false;
-	}
+    public boolean placeWhenInvalid() {
+        return false;
+    }
 
-	public boolean isValidTarget(LevelAccessor level, BlockPos pos) {
-		return true;
-	}
+    public boolean isValidTarget(LevelAccessor level, BlockPos pos) {
+        return true;
+    }
 
-	@Environment(EnvType.CLIENT)
-	public AABB getSelectionBounds(BlockPos pos) {
-		Level world = Minecraft.getInstance().level;
-		BlockState state = world.getBlockState(pos);
-		VoxelShape shape = state.getShape(world, pos);
-		return shape.isEmpty() ? new AABB(BlockPos.ZERO)
-			: shape.bounds()
-				.move(pos);
-	}
+    @Environment(EnvType.CLIENT)
+    public AABB getSelectionBounds(BlockPos pos) {
+        Level world = Minecraft.getInstance().level;
+        BlockState state = world.getBlockState(pos);
+        VoxelShape shape = state.getShape(world, pos);
+        return shape.isEmpty() ? new AABB(BlockPos.ZERO) : shape.bounds().move(pos);
+    }
 
-	public record ClickToLinkData(BlockPos selectedPos, ResourceLocation selectedDim) {
-		public static final Codec<ClickToLinkData> CODEC = RecordCodecBuilder.create(instance -> instance.group(
-			BlockPos.CODEC.fieldOf("selected_pos").forGetter(ClickToLinkData::selectedPos),
-			ResourceLocation.CODEC.fieldOf("selected_dim").forGetter(ClickToLinkData::selectedDim)
-		).apply(instance, ClickToLinkData::new));
+    public record ClickToLinkData(BlockPos selectedPos, ResourceLocation selectedDim) {
+        public static final Codec<ClickToLinkData> CODEC =
+                RecordCodecBuilder.create(
+                        instance ->
+                                instance.group(
+                                                BlockPos.CODEC
+                                                        .fieldOf("selected_pos")
+                                                        .forGetter(ClickToLinkData::selectedPos),
+                                                ResourceLocation.CODEC
+                                                        .fieldOf("selected_dim")
+                                                        .forGetter(ClickToLinkData::selectedDim))
+                                        .apply(instance, ClickToLinkData::new));
 
-		public static final StreamCodec<ByteBuf, ClickToLinkData> STREAM_CODEC = StreamCodec.composite(
-		    BlockPos.STREAM_CODEC, ClickToLinkData::selectedPos,
-		    ResourceLocation.STREAM_CODEC, ClickToLinkData::selectedDim,
-		    ClickToLinkData::new
-		);
-	}
+        public static final StreamCodec<ByteBuf, ClickToLinkData> STREAM_CODEC =
+                StreamCodec.composite(
+                        BlockPos.STREAM_CODEC,
+                        ClickToLinkData::selectedPos,
+                        ResourceLocation.STREAM_CODEC,
+                        ClickToLinkData::selectedDim,
+                        ClickToLinkData::new);
+    }
 }

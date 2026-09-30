@@ -1,15 +1,10 @@
 package com.simibubi.create.infrastructure.gui;
 
-import java.util.Arrays;
-import java.util.List;
-import java.util.stream.Collectors;
-
-import org.apache.commons.lang3.mutable.MutableObject;
-
 import com.simibubi.create.AllItems;
 import com.simibubi.create.infrastructure.config.AllConfigs;
 
 import net.createmod.catnip.gui.ScreenOpener;
+import net.fabricmc.fabric.api.client.screen.v1.Screens;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
@@ -23,101 +18,118 @@ import net.minecraft.client.resources.model.BakedModel;
 import net.minecraft.network.chat.CommonComponents;
 import net.minecraft.world.item.ItemStack;
 
-import net.fabricmc.fabric.api.client.screen.v1.Screens;
+import org.apache.commons.lang3.mutable.MutableObject;
+
+import java.util.Arrays;
+import java.util.List;
+import java.util.stream.Collectors;
 
 public class OpenCreateMenuButton extends Button {
 
-	public OpenCreateMenuButton(int x, int y) {
-		super(x, y, 20, 20, CommonComponents.EMPTY, OpenCreateMenuButton::click, DEFAULT_NARRATION);
-	}
+    public OpenCreateMenuButton(int x, int y) {
+        super(x, y, 20, 20, CommonComponents.EMPTY, OpenCreateMenuButton::click, DEFAULT_NARRATION);
+    }
 
-	@Override
-	public void renderString(GuiGraphics graphics, Font pFont, int pColor) {
-		ItemStack icon = AllItems.GOGGLES.asStack();
-		BakedModel bakedmodel = Minecraft.getInstance()
-			.getItemRenderer()
-			.getModel(icon, Minecraft.getInstance().level, Minecraft.getInstance().player, 0);
-		if (bakedmodel == null)
-			return;
+    @Override
+    public void renderString(GuiGraphics graphics, Font pFont, int pColor) {
+        ItemStack icon = AllItems.GOGGLES.asStack();
+        BakedModel bakedmodel =
+                Minecraft.getInstance()
+                        .getItemRenderer()
+                        .getModel(
+                                icon,
+                                Minecraft.getInstance().level,
+                                Minecraft.getInstance().player,
+                                0);
+        if (bakedmodel == null) return;
 
-		graphics.renderItem(icon, getX() + 2, getY() + 2);
-	}
+        graphics.renderItem(icon, getX() + 2, getY() + 2);
+    }
 
-	public static void click(Button b) {
-		ScreenOpener.open(new CreateMainMenuScreen(Minecraft.getInstance().screen));
-	}
+    public static void click(Button b) {
+        ScreenOpener.open(new CreateMainMenuScreen(Minecraft.getInstance().screen));
+    }
 
-	public record SingleMenuRow(String leftTextKey, String rightTextKey) {
+    public record SingleMenuRow(String leftTextKey, String rightTextKey) {
 
-		public SingleMenuRow(String centerTextKey) {
-			this(centerTextKey, centerTextKey);
-		}
-	}
+        public SingleMenuRow(String centerTextKey) {
+            this(centerTextKey, centerTextKey);
+        }
+    }
 
-	public static class MenuRows {
-		public static final MenuRows MAIN_MENU = new MenuRows(Arrays.asList(
-				new SingleMenuRow("menu.singleplayer"),
-				new SingleMenuRow("menu.multiplayer"),
-				new SingleMenuRow("menu.online"),
-				new SingleMenuRow("narrator.button.language", "narrator.button.accessibility")
-		));
+    public static class MenuRows {
+        public static final MenuRows MAIN_MENU =
+                new MenuRows(
+                        Arrays.asList(
+                                new SingleMenuRow("menu.singleplayer"),
+                                new SingleMenuRow("menu.multiplayer"),
+                                new SingleMenuRow("menu.online"),
+                                new SingleMenuRow(
+                                        "narrator.button.language",
+                                        "narrator.button.accessibility")));
 
-		public static final MenuRows INGAME_MENU = new MenuRows(Arrays.asList(
-				new SingleMenuRow("menu.returnToGame"),
-				new SingleMenuRow("gui.advancements", "gui.stats"),
-				new SingleMenuRow("menu.sendFeedback", "menu.reportBugs"),
-				new SingleMenuRow("menu.options", "menu.shareToLan"),
-				new SingleMenuRow("menu.returnToMenu")
-		));
+        public static final MenuRows INGAME_MENU =
+                new MenuRows(
+                        Arrays.asList(
+                                new SingleMenuRow("menu.returnToGame"),
+                                new SingleMenuRow("gui.advancements", "gui.stats"),
+                                new SingleMenuRow("menu.sendFeedback", "menu.reportBugs"),
+                                new SingleMenuRow("menu.options", "menu.shareToLan"),
+                                new SingleMenuRow("menu.returnToMenu")));
 
-		protected final List<String> leftTextKeys, rightTextKeys;
+        protected final List<String> leftTextKeys, rightTextKeys;
 
-		public MenuRows(List<SingleMenuRow> rows) {
-			leftTextKeys = rows.stream().map(SingleMenuRow::leftTextKey).collect(Collectors.toList());
-			rightTextKeys = rows.stream().map(SingleMenuRow::rightTextKey).collect(Collectors.toList());
-		}
-	}
+        public MenuRows(List<SingleMenuRow> rows) {
+            leftTextKeys =
+                    rows.stream().map(SingleMenuRow::leftTextKey).collect(Collectors.toList());
+            rightTextKeys =
+                    rows.stream().map(SingleMenuRow::rightTextKey).collect(Collectors.toList());
+        }
+    }
 
-	public static class OpenConfigButtonHandler {
+    public static class OpenConfigButtonHandler {
 
-		public static void onGuiInit(Minecraft client, Screen screen, int scaledWidth, int scaledHeight) {
-			MenuRows menu;
-			int rowIdx;
-			int offsetX;
-			if (screen instanceof TitleScreen) {
-				menu = MenuRows.MAIN_MENU;
-				rowIdx = AllConfigs.client().mainMenuConfigButtonRow.get();
-				offsetX = AllConfigs.client().mainMenuConfigButtonOffsetX.get();
-			} else if (screen instanceof PauseScreen) {
-				menu = MenuRows.INGAME_MENU;
-				rowIdx = AllConfigs.client().ingameMenuConfigButtonRow.get();
-				offsetX = AllConfigs.client().ingameMenuConfigButtonOffsetX.get();
-			} else {
-				return;
-			}
+        public static void onGuiInit(
+                Minecraft client, Screen screen, int scaledWidth, int scaledHeight) {
+            MenuRows menu;
+            int rowIdx;
+            int offsetX;
+            if (screen instanceof TitleScreen) {
+                menu = MenuRows.MAIN_MENU;
+                rowIdx = AllConfigs.client().mainMenuConfigButtonRow.get();
+                offsetX = AllConfigs.client().mainMenuConfigButtonOffsetX.get();
+            } else if (screen instanceof PauseScreen) {
+                menu = MenuRows.INGAME_MENU;
+                rowIdx = AllConfigs.client().ingameMenuConfigButtonRow.get();
+                offsetX = AllConfigs.client().ingameMenuConfigButtonOffsetX.get();
+            } else {
+                return;
+            }
 
-			if (rowIdx == 0) {
-				return;
-			}
+            if (rowIdx == 0) {
+                return;
+            }
 
-			boolean onLeft = offsetX < 0;
-			String targetMessage = I18n.get((onLeft ? menu.leftTextKeys : menu.rightTextKeys).get(rowIdx - 1));
+            boolean onLeft = offsetX < 0;
+            String targetMessage =
+                    I18n.get((onLeft ? menu.leftTextKeys : menu.rightTextKeys).get(rowIdx - 1));
 
-			int offsetX_ = offsetX;
-			MutableObject<OpenCreateMenuButton> toAdd = new MutableObject<>(null);
-			Screens.getButtons(screen).stream()
-				.filter(w -> w instanceof AbstractWidget)
-				.map(w -> (AbstractWidget) w)
-				.filter(w -> w.getMessage()
-					.getString()
-					.equals(targetMessage))
-				.findFirst()
-				.ifPresent(w -> toAdd
-					.setValue(new OpenCreateMenuButton(w.getX() + offsetX_ + (onLeft ? -20 : w.getWidth()), w.getY())));
-			if (toAdd.getValue() != null)
-				screen.addRenderableWidget(toAdd.getValue());
-		}
-
-	}
-
+            int offsetX_ = offsetX;
+            MutableObject<OpenCreateMenuButton> toAdd = new MutableObject<>(null);
+            Screens.getButtons(screen).stream()
+                    .filter(w -> w instanceof AbstractWidget)
+                    .map(w -> (AbstractWidget) w)
+                    .filter(w -> w.getMessage().getString().equals(targetMessage))
+                    .findFirst()
+                    .ifPresent(
+                            w ->
+                                    toAdd.setValue(
+                                            new OpenCreateMenuButton(
+                                                    w.getX()
+                                                            + offsetX_
+                                                            + (onLeft ? -20 : w.getWidth()),
+                                                    w.getY())));
+            if (toAdd.getValue() != null) screen.addRenderableWidget(toAdd.getValue());
+        }
+    }
 }

@@ -9,13 +9,12 @@ import net.minecraft.world.level.block.state.BlockState;
 
 public class CasingBlock extends Block implements IWrenchable {
 
-	public CasingBlock(Properties p_i48440_1_) {
-		super(p_i48440_1_);
-	}
+    public CasingBlock(Properties p_i48440_1_) {
+        super(p_i48440_1_);
+    }
 
-	@Override
-	public InteractionResult onWrenched(BlockState state, UseOnContext context) {
-		return InteractionResult.FAIL;
-	}
-
+    @Override
+    public InteractionResult onWrenched(BlockState state, UseOnContext context) {
+        return InteractionResult.FAIL;
+    }
 }

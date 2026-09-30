@@ -1,41 +1,42 @@
 package com.simibubi.create.foundation;
 
-import java.util.Collection;
-import java.util.Set;
-
 import com.simibubi.create.Create;
 import com.simibubi.create.CreateClient;
 import com.simibubi.create.content.kinetics.belt.BeltHelper;
 import com.simibubi.create.content.logistics.tableCloth.TableClothModel;
 import com.simibubi.create.foundation.sound.SoundScapes;
 
+import net.fabricmc.fabric.api.resource.IdentifiableResourceReloadListener;
+import net.fabricmc.fabric.api.resource.ResourceReloadListenerKeys;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.server.packs.resources.ResourceManagerReloadListener;
 
-import net.fabricmc.fabric.api.resource.IdentifiableResourceReloadListener;
-import net.fabricmc.fabric.api.resource.ResourceReloadListenerKeys;
+import java.util.Collection;
+import java.util.Set;
 
-public class ClientResourceReloadListener implements ResourceManagerReloadListener, IdentifiableResourceReloadListener {
-	public static final ResourceLocation ID = Create.asResource("client_reload_listener");
-	// fabric: make sure number format is updated after languages load
-	public static final Set<ResourceLocation> DEPENDENCIES = Set.of(ResourceReloadListenerKeys.LANGUAGES);
+public class ClientResourceReloadListener
+        implements ResourceManagerReloadListener, IdentifiableResourceReloadListener {
+    public static final ResourceLocation ID = Create.asResource("client_reload_listener");
+    // fabric: make sure number format is updated after languages load
+    public static final Set<ResourceLocation> DEPENDENCIES =
+            Set.of(ResourceReloadListenerKeys.LANGUAGES);
 
-	@Override
-	public void onResourceManagerReload(ResourceManager resourceManager) {
-		CreateClient.invalidateRenderers();
-		SoundScapes.invalidateAll();
-		BeltHelper.uprightCache.clear();
-		TableClothModel.reload();
-	}
+    @Override
+    public void onResourceManagerReload(ResourceManager resourceManager) {
+        CreateClient.invalidateRenderers();
+        SoundScapes.invalidateAll();
+        BeltHelper.uprightCache.clear();
+        TableClothModel.reload();
+    }
 
-	@Override
-	public ResourceLocation getFabricId() {
-		return ID;
-	}
+    @Override
+    public ResourceLocation getFabricId() {
+        return ID;
+    }
 
-	@Override
-	public Collection<ResourceLocation> getFabricDependencies() {
-		return DEPENDENCIES;
-	}
+    @Override
+    public Collection<ResourceLocation> getFabricDependencies() {
+        return DEPENDENCIES;
+    }
 }

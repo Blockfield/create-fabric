@@ -12,6 +12,7 @@ import com.simibubi.create.foundation.item.render.PartialItemModelRenderer;
 import com.simibubi.create.infrastructure.fabric.RenderItemDecorationsCallback;
 
 import dev.engine_room.flywheel.lib.model.baked.PartialModel;
+
 import net.createmod.catnip.animation.AnimationTickHolder;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
@@ -22,56 +23,66 @@ import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
 
 public class PotatoCannonItemRenderer extends CustomRenderedItemModelRenderer {
-	public static final RenderItemDecorationsCallback DECORATOR = (guiGraphics, font, stack, xOffset, yOffset) -> {
-		LocalPlayer player = Minecraft.getInstance().player;
-		if (player == null) {
-			return;
-		}
+    public static final RenderItemDecorationsCallback DECORATOR =
+            (guiGraphics, font, stack, xOffset, yOffset) -> {
+                LocalPlayer player = Minecraft.getInstance().player;
+                if (player == null) {
+                    return;
+                }
 
-		Ammo ammo = PotatoCannonItem.getAmmo(player, stack);
-		if (ammo == null || AllItems.POTATO_CANNON.is(ammo.stack())) {
-			return;
-		}
+                Ammo ammo = PotatoCannonItem.getAmmo(player, stack);
+                if (ammo == null || AllItems.POTATO_CANNON.is(ammo.stack())) {
+                    return;
+                }
 
-		PoseStack poseStack = guiGraphics.pose();
-		poseStack.pushPose();
-		poseStack.translate(xOffset, yOffset + 8, 100);
-		poseStack.scale(.5f, .5f, .5f);
-		guiGraphics.renderItem(ammo.stack(), 0, 0);
-		poseStack.popPose();
-	};
+                PoseStack poseStack = guiGraphics.pose();
+                poseStack.pushPose();
+                poseStack.translate(xOffset, yOffset + 8, 100);
+                poseStack.scale(.5f, .5f, .5f);
+                guiGraphics.renderItem(ammo.stack(), 0, 0);
+                poseStack.popPose();
+            };
 
-	protected static final PartialModel COG = PartialModel.of(Create.asResource("item/potato_cannon/cog"));
+    protected static final PartialModel COG =
+            PartialModel.of(Create.asResource("item/potato_cannon/cog"));
 
-	@Override
-	protected void render(ItemStack stack, CustomRenderedItemModel model, PartialItemModelRenderer renderer,
-						  ItemDisplayContext transformType, PoseStack ms, MultiBufferSource buffer, int light, int overlay) {
-		renderer.render(model.getOriginalModel(), light);
-		Minecraft mc = Minecraft.getInstance();
-		LocalPlayer player = mc.player;
+    @Override
+    protected void render(
+            ItemStack stack,
+            CustomRenderedItemModel model,
+            PartialItemModelRenderer renderer,
+            ItemDisplayContext transformType,
+            PoseStack ms,
+            MultiBufferSource buffer,
+            int light,
+            int overlay) {
+        renderer.render(model.getOriginalModel(), light);
+        Minecraft mc = Minecraft.getInstance();
+        LocalPlayer player = mc.player;
 
-		float angle = AnimationTickHolder.getRenderTime() * -2.5f;
+        float angle = AnimationTickHolder.getRenderTime() * -2.5f;
 
-		if (player != null) {
-			boolean inMainHand = player.getMainHandItem() == stack;
-			boolean inOffHand = player.getOffhandItem() == stack;
+        if (player != null) {
+            boolean inMainHand = player.getMainHandItem() == stack;
+            boolean inOffHand = player.getOffhandItem() == stack;
 
-			if (inMainHand || inOffHand) {
-				boolean leftHanded = player.getMainArm() == HumanoidArm.LEFT;
-				float speed = CreateClient.POTATO_CANNON_RENDER_HANDLER.getAnimation(inMainHand ^ leftHanded,
-					AnimationTickHolder.getPartialTicks());
-				angle += 360 * Mth.clamp(speed * 5, 0, 1);
-			}
-		}
+            if (inMainHand || inOffHand) {
+                boolean leftHanded = player.getMainArm() == HumanoidArm.LEFT;
+                float speed =
+                        CreateClient.POTATO_CANNON_RENDER_HANDLER.getAnimation(
+                                inMainHand ^ leftHanded, AnimationTickHolder.getPartialTicks());
+                angle += 360 * Mth.clamp(speed * 5, 0, 1);
+            }
+        }
 
-		angle %= 360;
-		float offset = .5f / 16;
+        angle %= 360;
+        float offset = .5f / 16;
 
-		ms.pushPose();
-		ms.translate(0, offset, 0);
-		ms.mulPose(Axis.ZP.rotationDegrees(angle));
-		ms.translate(0, -offset, 0);
-		renderer.render(COG.get(), light);
-		ms.popPose();
-	}
+        ms.pushPose();
+        ms.translate(0, offset, 0);
+        ms.mulPose(Axis.ZP.rotationDegrees(angle));
+        ms.translate(0, -offset, 0);
+        renderer.render(COG.get(), light);
+        ms.popPose();
+    }
 }

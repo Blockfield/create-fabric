@@ -14,29 +14,25 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
 
 public class WrenchEventHandler {
-	public static InteractionResult useOwnWrenchLogicForCreateBlocks(Player player, Level world, InteractionHand hand, BlockHitResult hitVec) {
-		ItemStack itemStack = player.getItemInHand(hand);
+    public static InteractionResult useOwnWrenchLogicForCreateBlocks(
+            Player player, Level world, InteractionHand hand, BlockHitResult hitVec) {
+        ItemStack itemStack = player.getItemInHand(hand);
 
-		// fabric: note - mayBuild handles spectator check
-		if (!player.mayBuild())
-			return InteractionResult.PASS;
-		if (itemStack.isEmpty())
-			return InteractionResult.PASS;
-		if (AllItems.WRENCH.isIn(itemStack))
-			return InteractionResult.PASS;
-		if (!AllItemTags.WRENCH.matches(itemStack.getItem()))
-			return InteractionResult.PASS;
+        // fabric: note - mayBuild handles spectator check
+        if (!player.mayBuild()) return InteractionResult.PASS;
+        if (itemStack.isEmpty()) return InteractionResult.PASS;
+        if (AllItems.WRENCH.isIn(itemStack)) return InteractionResult.PASS;
+        if (!AllItemTags.WRENCH.matches(itemStack.getItem())) return InteractionResult.PASS;
 
-		BlockState state = world
-			.getBlockState(hitVec.getBlockPos());
-		Block block = state.getBlock();
+        BlockState state = world.getBlockState(hitVec.getBlockPos());
+        Block block = state.getBlock();
 
-		if (!(block instanceof IWrenchable actor))
-			return InteractionResult.PASS;
+        if (!(block instanceof IWrenchable actor)) return InteractionResult.PASS;
 
-		UseOnContext context = new UseOnContext(player, hand, hitVec);
+        UseOnContext context = new UseOnContext(player, hand, hitVec);
 
-		return player.isShiftKeyDown() ? actor.onSneakWrenched(state, context) : actor.onWrenched(state, context);
-	}
-
+        return player.isShiftKeyDown()
+                ? actor.onSneakWrenched(state, context)
+                : actor.onWrenched(state, context);
+    }
 }

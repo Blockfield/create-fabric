@@ -1,40 +1,38 @@
 package com.simibubi.create.content.trains.schedule.destination;
 
-import java.util.List;
-
 import com.google.common.collect.ImmutableList;
 import com.simibubi.create.foundation.gui.ModularGuiLineBuilder;
 import com.simibubi.create.foundation.utility.CreateLang;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.network.chat.Component;
 
-import net.fabricmc.api.EnvType;
-import net.fabricmc.api.Environment;
+import java.util.List;
 
 public abstract class TextScheduleInstruction extends ScheduleInstruction {
 
-	protected String getLabelText() {
-		return textData("Text");
-	}
+    protected String getLabelText() {
+        return textData("Text");
+    }
 
-	@Override
-	public List<Component> getTitleAs(String type) {
-		return ImmutableList.of(CreateLang.translateDirect("schedule." + type + "." + getId().getPath() + ".summary")
-			.withStyle(ChatFormatting.GOLD), CreateLang.translateDirect("generic.in_quotes", Component.literal(getLabelText())));
-	}
+    @Override
+    public List<Component> getTitleAs(String type) {
+        return ImmutableList.of(
+                CreateLang.translateDirect(
+                                "schedule." + type + "." + getId().getPath() + ".summary")
+                        .withStyle(ChatFormatting.GOLD),
+                CreateLang.translateDirect("generic.in_quotes", Component.literal(getLabelText())));
+    }
 
-	@Override
-	@Environment(EnvType.CLIENT)
-	public void initConfigurationWidgets(ModularGuiLineBuilder builder) {
-		builder.addTextInput(0, 121, (e, t) -> modifyEditBox(e), "Text");
-	}
+    @Override
+    @Environment(EnvType.CLIENT)
+    public void initConfigurationWidgets(ModularGuiLineBuilder builder) {
+        builder.addTextInput(0, 121, (e, t) -> modifyEditBox(e), "Text");
+    }
 
-	@Environment(EnvType.CLIENT)
-	protected void modifyEditBox(EditBox box) {}
-
+    @Environment(EnvType.CLIENT)
+    protected void modifyEditBox(EditBox box) {}
 }

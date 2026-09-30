@@ -1,16 +1,11 @@
 package com.simibubi.create.foundation.data.recipe;
 
-import java.util.ArrayList;
-import java.util.List;
-
-import io.github.fabricators_of_create.porting_lib.mixin.accessors.common.accessor.AxeItemAccessor;
-
-import org.jetbrains.annotations.Nullable;
-
 import com.simibubi.create.content.kinetics.deployer.ManualApplicationRecipe;
 import com.simibubi.create.content.processing.recipe.ProcessingRecipeBuilder;
 import com.simibubi.create.foundation.utility.CreateLang;
 import com.simibubi.create.infrastructure.config.AllConfigs;
+
+import io.github.fabricators_of_create.porting_lib.mixin.accessors.common.accessor.AxeItemAccessor;
 
 import net.createmod.catnip.registry.RegisteredObjectsHelper;
 import net.minecraft.core.component.DataComponents;
@@ -26,59 +21,62 @@ import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.item.crafting.RecipeHolder;
 import net.minecraft.world.level.block.state.BlockState;
 
-import io.github.fabricators_of_create.porting_lib.mixin.accessors.common.accessor.AxeItemAccessor;
+import org.jetbrains.annotations.Nullable;
 
-/**
- * Just in case players don't know about that vanilla feature
- */
+import java.util.ArrayList;
+import java.util.List;
+
+/** Just in case players don't know about that vanilla feature */
 public class LogStrippingFakeRecipes {
 
-	public static List<RecipeHolder<ManualApplicationRecipe>> createRecipes() {
-		List<RecipeHolder<ManualApplicationRecipe>> recipes = new ArrayList<>();
-		if (!AllConfigs.server().recipes.displayLogStrippingRecipes.get())
-			return recipes;
+    public static List<RecipeHolder<ManualApplicationRecipe>> createRecipes() {
+        List<RecipeHolder<ManualApplicationRecipe>> recipes = new ArrayList<>();
+        if (!AllConfigs.server().recipes.displayLogStrippingRecipes.get()) return recipes;
 
-		ItemStack axe = new ItemStack(Items.IRON_AXE);
-		axe.set(DataComponents.ATTRIBUTE_MODIFIERS, ItemAttributeModifiers.EMPTY);
-		axe.set(DataComponents.CUSTOM_NAME, CreateLang.translateDirect("recipe.item_application.any_axe")
-			.withStyle(style -> style.withItalic(false)));
-		BuiltInRegistries.ITEM.getTagOrEmpty(ItemTags.LOGS)
-				.forEach(stack -> process(stack.value(), recipes, axe));
-		return recipes;
-	}
+        ItemStack axe = new ItemStack(Items.IRON_AXE);
+        axe.set(DataComponents.ATTRIBUTE_MODIFIERS, ItemAttributeModifiers.EMPTY);
+        axe.set(
+                DataComponents.CUSTOM_NAME,
+                CreateLang.translateDirect("recipe.item_application.any_axe")
+                        .withStyle(style -> style.withItalic(false)));
+        BuiltInRegistries.ITEM
+                .getTagOrEmpty(ItemTags.LOGS)
+                .forEach(stack -> process(stack.value(), recipes, axe));
+        return recipes;
+    }
 
-	private static void process(Item item, List<RecipeHolder<ManualApplicationRecipe>> list, ItemStack axe) {
-		if (!(item instanceof BlockItem blockItem))
-			return;
-		BlockState state = blockItem.getBlock()
-			.defaultBlockState();
-		BlockState strippedState = getStrippedState(state);
-		if (strippedState == null)
-			return;
-		Item resultItem = strippedState.getBlock()
-			.asItem();
-		if (resultItem == null)
-			return;
-		list.add(create(item, resultItem, axe));
-	}
+    private static void process(
+            Item item, List<RecipeHolder<ManualApplicationRecipe>> list, ItemStack axe) {
+        if (!(item instanceof BlockItem blockItem)) return;
+        BlockState state = blockItem.getBlock().defaultBlockState();
+        BlockState strippedState = getStrippedState(state);
+        if (strippedState == null) return;
+        Item resultItem = strippedState.getBlock().asItem();
+        if (resultItem == null) return;
+        list.add(create(item, resultItem, axe));
+    }
 
-	private static RecipeHolder<ManualApplicationRecipe> create(Item fromItem, Item toItem, ItemStack axe) {
-		ResourceLocation rn = RegisteredObjectsHelper.getKeyOrThrow(toItem);
-		ResourceLocation id = ResourceLocation.fromNamespaceAndPath(rn.getNamespace(), rn.getPath() + "_via_vanilla_stripping");
-		ManualApplicationRecipe recipe = new ProcessingRecipeBuilder<>(ManualApplicationRecipe::new, id)
-				.require(fromItem)
-				.require(Ingredient.of(axe))
-				.output(toItem)
-				.build();
+    private static RecipeHolder<ManualApplicationRecipe> create(
+            Item fromItem, Item toItem, ItemStack axe) {
+        ResourceLocation rn = RegisteredObjectsHelper.getKeyOrThrow(toItem);
+        ResourceLocation id =
+                ResourceLocation.fromNamespaceAndPath(
+                        rn.getNamespace(), rn.getPath() + "_via_vanilla_stripping");
+        ManualApplicationRecipe recipe =
+                new ProcessingRecipeBuilder<>(ManualApplicationRecipe::new, id)
+                        .require(fromItem)
+                        .require(Ingredient.of(axe))
+                        .output(toItem)
+                        .build();
 
-		return new RecipeHolder<>(id, recipe);
-	}
+        return new RecipeHolder<>(id, recipe);
+    }
 
-	@Nullable
-	public static BlockState getStrippedState(BlockState state) {
-		if (Items.IRON_AXE instanceof AxeItemAccessor axe) {
-			return axe.porting_lib$getStripped(state).orElse(null);
-		}
-		return null;
-	}
+    @Nullable
+    public static BlockState getStrippedState(BlockState state) {
+        if (Items.IRON_AXE instanceof AxeItemAccessor axe) {
+            return axe.porting_lib$getStripped(state).orElse(null);
+        }
+        return null;
+    }
 }

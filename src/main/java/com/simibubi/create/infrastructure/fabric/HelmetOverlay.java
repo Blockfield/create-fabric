@@ -8,13 +8,13 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 
 public abstract class HelmetOverlay {
-	public static final SimpleRegistry<Item, HelmetOverlay> REGISTRY = SimpleRegistry.create();
+    public static final SimpleRegistry<Item, HelmetOverlay> REGISTRY = SimpleRegistry.create();
 
-	public final ResourceLocation texture;
+    public final ResourceLocation texture;
 
-	protected HelmetOverlay(ResourceLocation texture) {
-		this.texture = texture;
-	}
+    protected HelmetOverlay(ResourceLocation texture) {
+        this.texture = texture;
+    }
 
-	public abstract float calculateOpacity(ItemStack stack, Player player, float partialTicks);
+    public abstract float calculateOpacity(ItemStack stack, Player player, float partialTicks);
 }

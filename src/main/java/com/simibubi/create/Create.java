@@ -1,11 +1,5 @@
 package com.simibubi.create;
 
-import java.util.Random;
-
-import com.simibubi.create.content.logistics.packagePort.AllPackagePortTargetTypes;
-
-import org.slf4j.Logger;
-
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.mojang.logging.LogUtils;
@@ -23,6 +17,7 @@ import com.simibubi.create.content.kinetics.TorquePropagator;
 import com.simibubi.create.content.kinetics.fan.processing.AllFanProcessingTypes;
 import com.simibubi.create.content.kinetics.mechanicalArm.AllArmInteractionPointTypes;
 import com.simibubi.create.content.logistics.item.filter.attribute.AllItemAttributeTypes;
+import com.simibubi.create.content.logistics.packagePort.AllPackagePortTargetTypes;
 import com.simibubi.create.content.logistics.packager.AllUnpackingHandlers;
 import com.simibubi.create.content.logistics.packager.fabric.AllInventoryIdentifiers;
 import com.simibubi.create.content.logistics.packagerLink.GlobalLogisticsManager;
@@ -51,165 +46,171 @@ import com.simibubi.create.infrastructure.worldgen.AllPlacementModifiers;
 
 import net.createmod.catnip.lang.FontHelper;
 import net.createmod.catnip.lang.LangBuilder;
+import net.fabricmc.api.ModInitializer;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.level.Level;
 
-import net.fabricmc.api.ModInitializer;
+import org.slf4j.Logger;
+
+import java.util.Random;
 
 public class Create implements ModInitializer {
-	public static final String ID = "create";
-	public static final String NAME = "Create";
+    public static final String ID = "create";
+    public static final String NAME = "Create";
 
-	public static final Logger LOGGER = LogUtils.getLogger();
+    public static final Logger LOGGER = LogUtils.getLogger();
 
-	private static final StackWalker STACK_WALKER = StackWalker.getInstance(StackWalker.Option.RETAIN_CLASS_REFERENCE);
+    private static final StackWalker STACK_WALKER =
+            StackWalker.getInstance(StackWalker.Option.RETAIN_CLASS_REFERENCE);
 
-	public static final Gson GSON = new GsonBuilder().setPrettyPrinting()
-		.disableHtmlEscaping()
-		.create();
+    public static final Gson GSON =
+            new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
 
-	/**
-	 * Use the {@link Random} of a local {@link Level} or {@link Entity} or create one
-	 */
-	@Deprecated
-	public static final Random RANDOM = new Random();
+    /** Use the {@link Random} of a local {@link Level} or {@link Entity} or create one */
+    @Deprecated public static final Random RANDOM = new Random();
 
-	/**
-	 * <b>Other mods should not use this field!</b> If you are an addon developer, create your own instance of
-	 * {@link CreateRegistrate}.
-	 * </br
-	 * If you were using this instance to render a callback listener use {@link CreateRegistrateRegistrationCallback#register} instead.
-	 */
-	private static final CreateRegistrate REGISTRATE = CreateRegistrate.create(ID)
-		.defaultCreativeTab((ResourceKey<CreativeModeTab>) null)
-		.setTooltipModifierFactory(item ->
-			new ItemDescription.Modifier(item, FontHelper.Palette.STANDARD_CREATE)
-				.andThen(TooltipModifier.mapNull(KineticStats.create(item)))
-		);
+    /**
+     * <b>Other mods should not use this field!</b> If you are an addon developer, create your own
+     * instance of {@link CreateRegistrate}. </br If you were using this instance to render a
+     * callback listener use {@link CreateRegistrateRegistrationCallback#register} instead.
+     */
+    private static final CreateRegistrate REGISTRATE =
+            CreateRegistrate.create(ID)
+                    .defaultCreativeTab((ResourceKey<CreativeModeTab>) null)
+                    .setTooltipModifierFactory(
+                            item ->
+                                    new ItemDescription.Modifier(
+                                                    item, FontHelper.Palette.STANDARD_CREATE)
+                                            .andThen(
+                                                    TooltipModifier.mapNull(
+                                                            KineticStats.create(item))));
 
-	public static final ServerSchematicLoader SCHEMATIC_RECEIVER = new ServerSchematicLoader();
-	public static final RedstoneLinkNetworkHandler REDSTONE_LINK_NETWORK_HANDLER = new RedstoneLinkNetworkHandler();
-	public static final TorquePropagator TORQUE_PROPAGATOR = new TorquePropagator();
-	public static final GlobalRailwayManager RAILWAYS = new GlobalRailwayManager();
-	public static final GlobalLogisticsManager LOGISTICS = new GlobalLogisticsManager();
-	public static final ServerLagger LAGGER = new ServerLagger();
+    public static final ServerSchematicLoader SCHEMATIC_RECEIVER = new ServerSchematicLoader();
+    public static final RedstoneLinkNetworkHandler REDSTONE_LINK_NETWORK_HANDLER =
+            new RedstoneLinkNetworkHandler();
+    public static final TorquePropagator TORQUE_PROPAGATOR = new TorquePropagator();
+    public static final GlobalRailwayManager RAILWAYS = new GlobalRailwayManager();
+    public static final GlobalLogisticsManager LOGISTICS = new GlobalLogisticsManager();
+    public static final ServerLagger LAGGER = new ServerLagger();
 
-	@Override
-	public void onInitialize() { // onCtor
-		LOGGER.info("{} {} initializing!", NAME, CreateBuildInfo.VERSION);
+    @Override
+    public void onInitialize() { // onCtor
+        LOGGER.info("{} {} initializing!", NAME, CreateBuildInfo.VERSION);
 
-		AllSoundEvents.prepare();
-		AllTags.init();
-		AllCreativeModeTabs.register();
-		AllArmorMaterials.register();
-		AllDisplaySources.register();
-		AllDisplayTargets.register();
-		AllBlocks.register();
-		AllItems.register();
-		AllFluids.register();
-		AllPaletteBlocks.register();
-		AllMenuTypes.register();
-		AllEntityTypes.register();
-		AllBlockEntityTypes.register();
-		AllRecipeTypes.register();
+        AllSoundEvents.prepare();
+        AllTags.init();
+        AllCreativeModeTabs.register();
+        AllArmorMaterials.register();
+        AllDisplaySources.register();
+        AllDisplayTargets.register();
+        AllBlocks.register();
+        AllItems.register();
+        AllFluids.register();
+        AllPaletteBlocks.register();
+        AllMenuTypes.register();
+        AllEntityTypes.register();
+        AllBlockEntityTypes.register();
+        AllRecipeTypes.register();
 
-		// fabric exclusive, squeeze this in here to register before stuff is used
-		AllBlocks.RAILWAYS_REGISTRATE.register();
-		REGISTRATE.register();
+        // fabric exclusive, squeeze this in here to register before stuff is used
+        AllBlocks.RAILWAYS_REGISTRATE.register();
+        REGISTRATE.register();
 
-		AllParticleTypes.register();
-		AllStructureProcessorTypes.register();
-		AllEntityDataSerializers.register();
-		AllPackets.register();
-		AllFeatures.register();
-		AllPlacementModifiers.register();
-		AllDataComponents.register();
-		AllMapDecorationTypes.register();
-		AllMountedStorageTypes.register();
+        AllParticleTypes.register();
+        AllStructureProcessorTypes.register();
+        AllEntityDataSerializers.register();
+        AllPackets.register();
+        AllFeatures.register();
+        AllPlacementModifiers.register();
+        AllDataComponents.register();
+        AllMapDecorationTypes.register();
+        AllMountedStorageTypes.register();
 
-		AllConfigs.register();
+        AllConfigs.register();
 
-		// TODO - Make these use Registry.register and move them into the RegisterEvent
-		AllPackagePortTargetTypes.register();
+        // TODO - Make these use Registry.register and move them into the RegisterEvent
+        AllPackagePortTargetTypes.register();
 
-		AllSchematicStateFilters.registerDefaults();
+        AllSchematicStateFilters.registerDefaults();
 
-		// FIXME: some of these registrations are not thread-safe
-		BogeySizes.init();
-		AllBogeyStyles.init();
-		// ----
+        // FIXME: some of these registrations are not thread-safe
+        BogeySizes.init();
+        AllBogeyStyles.init();
+        // ----
 
-		ComputerCraftProxy.register();
+        ComputerCraftProxy.register();
 
-		// milk-lib 1.1.0 регистрирует молоко сам в onInitialize
-		CopperRegistries.inject();
+        // milk-lib 1.1.0 регистрирует молоко сам в onInitialize
+        CopperRegistries.inject();
 
-		Create.init();
-		Create.onRegister();
-		AllSoundEvents.register();
+        Create.init();
+        Create.onRegister();
+        AllSoundEvents.register();
 
-		// causes class loading issues or something
-		// noinspection Convert2MethodRef
-		Mods.TRINKETS.executeIfInstalled(() -> () -> Trinkets.init());
+        // causes class loading issues or something
+        // noinspection Convert2MethodRef
+        Mods.TRINKETS.executeIfInstalled(() -> () -> Trinkets.init());
 
-		// fabric exclusive
-		AllIngredients.register();
-		CommonEvents.register();
-		FabricStructureProcessing.init();
-		AllBiomeModifiers.bootstrap(); // moved out of datagen
-		CreateRegistriesImpl.registerDatapackRegistries();
-		AllInventoryIdentifiers.registerDefaults();
-	}
+        // fabric exclusive
+        AllIngredients.register();
+        CommonEvents.register();
+        FabricStructureProcessing.init();
+        AllBiomeModifiers.bootstrap(); // moved out of datagen
+        CreateRegistriesImpl.registerDatapackRegistries();
+        AllInventoryIdentifiers.registerDefaults();
+    }
 
-	public static void init() {
-		AllFluids.registerFluidInteractions();
-		CreateNBTProcessors.register();
+    public static void init() {
+        AllFluids.registerFluidInteractions();
+        CreateNBTProcessors.register();
 
-//		event.enqueueWork(() -> {
-			// TODO: custom registration should all happen in one place
-			// Most registration happens in the constructor.
-			// These registrations use Create's registered objects directly so they must run after registration has finished.
-			BoilerHeaters.registerDefaults();
-			AllPortalTracks.registerDefaults();
-			AllBlockSpoutingBehaviours.registerDefaults();
-			AllMovementBehaviours.registerDefaults();
-			AllInteractionBehaviours.registerDefaults();
-			AllContraptionMovementSettings.registerDefaults();
-			AllOpenPipeEffectHandlers.registerDefaults();
-			AllMountedDispenseItemBehaviors.registerDefaults();
-			AllUnpackingHandlers.registerDefaults();
-			AllFluids.registerFluidInteractions();
-			// --
-//		});
-	}
+        //		event.enqueueWork(() -> {
+        // TODO: custom registration should all happen in one place
+        // Most registration happens in the constructor.
+        // These registrations use Create's registered objects directly so they must run after
+        // registration has finished.
+        BoilerHeaters.registerDefaults();
+        AllPortalTracks.registerDefaults();
+        AllBlockSpoutingBehaviours.registerDefaults();
+        AllMovementBehaviours.registerDefaults();
+        AllInteractionBehaviours.registerDefaults();
+        AllContraptionMovementSettings.registerDefaults();
+        AllOpenPipeEffectHandlers.registerDefaults();
+        AllMountedDispenseItemBehaviors.registerDefaults();
+        AllUnpackingHandlers.registerDefaults();
+        AllFluids.registerFluidInteractions();
+        // --
+        //		});
+    }
 
-	public static void onRegister() {
-		AllArmInteractionPointTypes.init();
-		AllFanProcessingTypes.init();
-		AllItemAttributeTypes.init();
-		AllContraptionTypes.init();
-		AllPotatoProjectileRenderModes.init();
-		AllPotatoProjectileEntityHitActions.init();
-		AllPotatoProjectileBlockHitActions.init();
+    public static void onRegister() {
+        AllArmInteractionPointTypes.init();
+        AllFanProcessingTypes.init();
+        AllItemAttributeTypes.init();
+        AllContraptionTypes.init();
+        AllPotatoProjectileRenderModes.init();
+        AllPotatoProjectileEntityHitActions.init();
+        AllPotatoProjectileBlockHitActions.init();
 
-		AllAdvancements.register();
-		AllTriggers.register();
-	}
+        AllAdvancements.register();
+        AllTriggers.register();
+    }
 
-	public static LangBuilder lang() {
-		return new LangBuilder(ID);
-	}
+    public static LangBuilder lang() {
+        return new LangBuilder(ID);
+    }
 
-	public static ResourceLocation asResource(String path) {
-		return ResourceLocation.fromNamespaceAndPath(ID, path);
-	}
+    public static ResourceLocation asResource(String path) {
+        return ResourceLocation.fromNamespaceAndPath(ID, path);
+    }
 
-	public static CreateRegistrate registrate() {
-		if (!STACK_WALKER.getCallerClass().getPackageName().startsWith("com.simibubi.create"))
-			throw new UnsupportedOperationException("Other mods are not permitted to use create's registrate instance.");
-		return REGISTRATE;
-	}
+    public static CreateRegistrate registrate() {
+        if (!STACK_WALKER.getCallerClass().getPackageName().startsWith("com.simibubi.create"))
+            throw new UnsupportedOperationException(
+                    "Other mods are not permitted to use create's registrate instance.");
+        return REGISTRATE;
+    }
 }

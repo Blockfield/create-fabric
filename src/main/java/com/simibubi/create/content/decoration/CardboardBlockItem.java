@@ -5,8 +5,7 @@ import net.minecraft.world.level.block.Block;
 
 public class CardboardBlockItem extends BlockItem {
 
-	public CardboardBlockItem(Block pBlock, Properties pProperties) {
-		super(pBlock, pProperties);
-	}
-
+    public CardboardBlockItem(Block pBlock, Properties pProperties) {
+        super(pBlock, pProperties);
+    }
 }

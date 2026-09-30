@@ -8,7 +8,6 @@ import com.simibubi.create.content.contraptions.piston.MechanicalPistonBlock.Pis
 import com.simibubi.create.foundation.block.WrenchableDirectionalBlock;
 
 import net.fabricmc.fabric.api.block.BlockPickInteractionAware;
-
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.entity.player.Player;
@@ -26,7 +25,6 @@ import net.minecraft.world.level.block.state.properties.EnumProperty;
 import net.minecraft.world.level.block.state.properties.PistonType;
 import net.minecraft.world.level.material.FluidState;
 import net.minecraft.world.level.material.Fluids;
-import net.minecraft.world.level.material.PushReaction;
 import net.minecraft.world.level.pathfinder.PathComputationType;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.shapes.CollisionContext;
@@ -34,13 +32,15 @@ import net.minecraft.world.phys.shapes.VoxelShape;
 
 import org.jetbrains.annotations.Nullable;
 
-public class MechanicalPistonHeadBlock extends WrenchableDirectionalBlock implements SimpleWaterloggedBlock, BlockPickInteractionAware {
+public class MechanicalPistonHeadBlock extends WrenchableDirectionalBlock
+        implements SimpleWaterloggedBlock, BlockPickInteractionAware {
 
     public static final EnumProperty<PistonType> TYPE = BlockStateProperties.PISTON_TYPE;
 
     public MechanicalPistonHeadBlock(Properties p_i48415_1_) {
         super(p_i48415_1_);
-        registerDefaultState(super.defaultBlockState().setValue(BlockStateProperties.WATERLOGGED, false));
+        registerDefaultState(
+                super.defaultBlockState().setValue(BlockStateProperties.WATERLOGGED, false));
     }
 
     @Override
@@ -49,13 +49,19 @@ public class MechanicalPistonHeadBlock extends WrenchableDirectionalBlock implem
         super.createBlockStateDefinition(builder);
     }
 
-	@Override
-	public ItemStack getPickedStack(BlockState state, BlockGetter view, BlockPos pos, @Nullable Player player, @Nullable HitResult result) {
-		return AllBlocks.PISTON_EXTENSION_POLE.asStack();
-	}
+    @Override
+    public ItemStack getPickedStack(
+            BlockState state,
+            BlockGetter view,
+            BlockPos pos,
+            @Nullable Player player,
+            @Nullable HitResult result) {
+        return AllBlocks.PISTON_EXTENSION_POLE.asStack();
+    }
 
     @Override
-    public BlockState playerWillDestroy(Level worldIn, BlockPos pos, BlockState state, Player player) {
+    public BlockState playerWillDestroy(
+            Level worldIn, BlockPos pos, BlockState state, Player player) {
         Direction direction = state.getValue(FACING);
         BlockPos pistonHead = pos;
         BlockPos pistonBase = null;
@@ -64,11 +70,12 @@ public class MechanicalPistonHeadBlock extends WrenchableDirectionalBlock implem
             BlockPos currentPos = pos.relative(direction.getOpposite(), offset);
             BlockState block = worldIn.getBlockState(currentPos);
 
-            if (isExtensionPole(block) && direction.getAxis() == block.getValue(BlockStateProperties.FACING)
-                    .getAxis())
+            if (isExtensionPole(block)
+                    && direction.getAxis() == block.getValue(BlockStateProperties.FACING).getAxis())
                 continue;
 
-            if (MechanicalPistonBlock.isPiston(block) && block.getValue(BlockStateProperties.FACING) == direction)
+            if (MechanicalPistonBlock.isPiston(block)
+                    && block.getValue(BlockStateProperties.FACING) == direction)
                 pistonBase = currentPos;
 
             break;
@@ -79,26 +86,36 @@ public class MechanicalPistonHeadBlock extends WrenchableDirectionalBlock implem
             BlockPos.betweenClosedStream(pistonBase, pistonHead)
                     .filter(p -> !p.equals(pos) && !p.equals(basePos))
                     .forEach(p -> worldIn.destroyBlock(p, !player.isCreative()));
-            worldIn.setBlockAndUpdate(basePos, worldIn.getBlockState(basePos)
-                    .setValue(MechanicalPistonBlock.STATE, PistonState.RETRACTED));
+            worldIn.setBlockAndUpdate(
+                    basePos,
+                    worldIn.getBlockState(basePos)
+                            .setValue(MechanicalPistonBlock.STATE, PistonState.RETRACTED));
         }
 
         return super.playerWillDestroy(worldIn, pos, state, player);
     }
 
     @Override
-    public VoxelShape getShape(BlockState state, BlockGetter worldIn, BlockPos pos, CollisionContext context) {
+    public VoxelShape getShape(
+            BlockState state, BlockGetter worldIn, BlockPos pos, CollisionContext context) {
         return AllShapes.MECHANICAL_PISTON_HEAD.get(state.getValue(FACING));
     }
 
     @Override
     public FluidState getFluidState(BlockState state) {
-        return state.getValue(BlockStateProperties.WATERLOGGED) ? Fluids.WATER.getSource(false) : Fluids.EMPTY.defaultFluidState();
+        return state.getValue(BlockStateProperties.WATERLOGGED)
+                ? Fluids.WATER.getSource(false)
+                : Fluids.EMPTY.defaultFluidState();
     }
 
     @Override
-    public BlockState updateShape(BlockState state, Direction direction, BlockState neighbourState,
-                                          LevelAccessor world, BlockPos pos, BlockPos neighbourPos) {
+    public BlockState updateShape(
+            BlockState state,
+            Direction direction,
+            BlockState neighbourState,
+            LevelAccessor world,
+            BlockPos pos,
+            BlockPos neighbourPos) {
         if (state.getValue(BlockStateProperties.WATERLOGGED))
             world.scheduleTick(pos, Fluids.WATER, Fluids.WATER.getTickDelay(world));
         return state;
@@ -107,11 +124,14 @@ public class MechanicalPistonHeadBlock extends WrenchableDirectionalBlock implem
     @Override
     public BlockState getStateForPlacement(BlockPlaceContext context) {
         FluidState FluidState = context.getLevel().getFluidState(context.getClickedPos());
-        return super.getStateForPlacement(context).setValue(BlockStateProperties.WATERLOGGED, Boolean.valueOf(FluidState.getType() == Fluids.WATER));
+        return super.getStateForPlacement(context)
+                .setValue(
+                        BlockStateProperties.WATERLOGGED,
+                        Boolean.valueOf(FluidState.getType() == Fluids.WATER));
     }
 
     @Override
-	protected boolean isPathfindable(BlockState state, PathComputationType pathComputationType) {
-		return false;
-	}
+    protected boolean isPathfindable(BlockState state, PathComputationType pathComputationType) {
+        return false;
+    }
 }
