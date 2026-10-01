@@ -1,19 +1,31 @@
-# http://editorconfig.org
 root = true
 
 [*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
 indent_style = space
 indent_size = 4
-end_of_line = lf
-charset = utf-8
-trim_trailing_whitespace = true
-insert_final_newline = true
 
-[*.yml]
+[*.{json,jsonc,yml,yaml,md,js,jsx,ts,tsx,mjs,cjs,mts,cts,css,scss,less,html,svg,astro}]
 indent_size = 2
 
-[*.json]
-indent_size = 2
+[*.md]
+trim_trailing_whitespace = false
+
+[*.{bat,cmd}]
+end_of_line = crlf
+
+[*.go]
+indent_style = tab
+indent_size = tab
+tab_width = 8
+
+[{Makefile,makefile,GNUmakefile,*.mk,.gitmodules,.gitconfig}]
+indent_style = tab
+indent_size = tab
+tab_width = 4
 
 [*.java]
 indent_style = space

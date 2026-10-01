@@ -1,8 +1,7 @@
 * text=auto eol=lf
 *.bat text eol=crlf
-# Auto detect text files and perform LF normalization
-# Disable autocrlf on generated files, they always generate with LF
-src/generated/**/*.json text eol=lf*.png binary
+*.cmd text eol=crlf
+*.png binary
 *.jpg binary
 *.jpeg binary
 *.webp binary
@@ -14,11 +13,15 @@ src/generated/**/*.json text eol=lf*.png binary
 *.mp4 binary
 *.zip binary
 *.jar binary
+*.class binary
 *.mca binary
 *.nbt binary
 *.schem binary
 *.schematic binary
 *.ttf binary
+*.otf binary
 *.woff binary
 *.woff2 binary
 *.pdf binary
+
+src/generated/**/*.json text eol=lf
