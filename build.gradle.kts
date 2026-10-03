@@ -204,6 +204,7 @@ loom {
             name("Headless GameTests")
             ideConfigGenerated(false) // this run is for CI
             vmArg("-Dfabric-api.gametest")
+            vmArg("-Dfabric.debug.disableModIds=porting_lib_gametest")
             vmArg("-Dfabric-api.gametest.report-file=${layout.buildDirectory.file("gametest-results.xml").get().asFile}")
             vmArg("-Xmx2G")
             runDir("build/gametest")

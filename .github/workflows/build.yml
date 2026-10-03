@@ -49,7 +49,7 @@ jobs:
           import xml.etree.ElementTree as ET
           report = ET.parse("build/gametest-results.xml").getroot()
           cases = report.findall(".//testcase")
-          assert cases, "GameTests produced no test cases"
+          assert len(cases) >= 66, "Expected all 66 Create-owned GameTests"
           assert not report.findall(".//failure") + report.findall(".//error"), "GameTests reported failures"
           print(f"{len(cases)} GameTests passed")
           PYTEST
