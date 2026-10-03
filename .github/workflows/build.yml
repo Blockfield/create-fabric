@@ -16,7 +16,7 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
@@ -39,7 +39,33 @@ jobs:
       - run: python -I -X utf8 scripts/toolchain.py --ci
       # v6 bundles proprietary caching under Gradle's Terms of Use; setup-gradle also validates wrappers by default.
       - uses: gradle/actions/setup-gradle@v5
-      - run: just build
+      - name: Verify JVM lint and regression tests, then build
+        run: just build
+      - name: Run headless GameTests
+        timeout-minutes: 10
+        run: |
+          timeout 9m ./gradlew runGametestServer --no-daemon --max-workers=2 -Dorg.gradle.jvmargs=-Xmx2G
+          just python - <<'PYTEST'
+          import xml.etree.ElementTree as ET
+          report = ET.parse("build/gametest-results.xml").getroot()
+          cases = report.findall(".//testcase")
+          create_cases = [case for case in cases if case.get("classname", "").startswith("create:")]
+          assert len(create_cases) >= 66 and len(cases) >= 67, "Expected 66 Create GameTests plus the Porting Lib smoke test"
+          assert not report.findall(".//failure") + report.findall(".//error"), "GameTests reported failures"
+          assert not report.findall(".//skipped"), "GameTests were skipped"
+          print(f"{len(cases)} GameTests passed")
+          PYTEST
+      - name: Upload JVM test reports
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: JVM test reports
+          path: |
+            build/gametest-results.xml
+            build/gametest/logs/
+            build/gametest/crash-reports/
+            build/reports/tests/
+          if-no-files-found: warn
       - uses: actions/upload-artifact@v7
         with:
           name: Artifacts

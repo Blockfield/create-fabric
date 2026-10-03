@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "id": "create_gametest_fixtures",
+  "version": "1",
+  "name": "Create GameTest Fixtures",
+  "environment": "server",
+  "license": "LGPL",
+  "mixins": ["create-gametest.mixins.json"]
+}

@@ -186,6 +186,28 @@ sourceSets.named("main") {
     }
 }
 
+val compileGametestFixtures =
+    tasks.register<JavaCompile>("compileGametestFixtures") {
+        dependsOn(tasks.classes)
+        source("src/gametest/java")
+        classpath = sourceSets["main"].compileClasspath + sourceSets["main"].output
+        destinationDirectory = layout.buildDirectory.dir("classes/java/gametest")
+        options.annotationProcessorPath = files()
+        options.compilerArgs.addAll(listOf("-proc:none", "-Xlint:all", "-Werror"))
+    }
+tasks.named("check") { dependsOn(compileGametestFixtures) }
+
+val gametestFixtures =
+    tasks.register<Jar>("gametestFixtures") {
+        archiveFileName = "create-gametest-fixtures.jar"
+        destinationDirectory = layout.buildDirectory.dir("gametest-fixtures")
+        from("src/gametest/resources")
+        from(compileGametestFixtures.flatMap { it.destinationDirectory })
+        entryCompression = org.gradle.api.tasks.bundling.ZipEntryCompression.STORED
+        isPreserveFileTimestamps = false
+        isReproducibleFileOrder = true
+    }
+
 loom {
     accessWidenerPath = file("src/main/resources/create.accesswidener")
 
@@ -201,11 +223,13 @@ loom {
 
         register("gametestServer") {
             server()
-            name("Headlesss GameTests")
+            name("Headless GameTests")
             ideConfigGenerated(false) // this run is for CI
             vmArg("-Dfabric-api.gametest")
-            vmArg("-Dfabric-api.gametest.report-file=${layout.buildDirectory}/junit.xml")
-            runDir("run/gametest")
+            vmArg("-Dfabric.addMods=${gametestFixtures.get().archiveFile.get().asFile.absolutePath}")
+            vmArg("-Dfabric-api.gametest.report-file=${layout.buildDirectory.file("gametest-results.xml").get().asFile}")
+            vmArg("-Xmx2G")
+            runDir("build/gametest")
         }
 
         named("server") {
@@ -219,6 +243,8 @@ loom {
         }
     }
 }
+
+tasks.named("runGametestServer") { dependsOn(gametestFixtures) }
 
 configurations {
     // this avoids remapping ponder when it's local
@@ -315,14 +341,24 @@ dependencies {
 }
 
 tasks.register<JavaExec>("codecCheck") {
-    classpath = sourceSets["main"].runtimeClasspath
+    dependsOn(tasks.testClasses)
+    classpath = sourceSets["test"].runtimeClasspath + sourceSets["main"].compileClasspath
     mainClass = "com.simibubi.create.content.processing.recipe.ProcessingOutputCodecCheck"
     workingDir = layout.buildDirectory.get().asFile // Bootstrap пишет logs/ в рабочий каталог
+    maxHeapSize = "256m"
 }
 
 tasks.register<JavaExec>("trackCollisionCheck") {
-    classpath = sourceSets["main"].runtimeClasspath
+    dependsOn(tasks.testClasses)
+    classpath = sourceSets["test"].runtimeClasspath + sourceSets["main"].compileClasspath
     mainClass = "com.simibubi.create.content.trains.track.TrackCollisionCheck"
+    maxHeapSize = "256m"
+}
+
+tasks.register<JavaExec>("mixinCheck") {
+    dependsOn(tasks.testClasses)
+    classpath = sourceSets["test"].runtimeClasspath + sourceSets["main"].compileClasspath
+    mainClass = "com.simibubi.create.foundation.mixin.CreateMixinPluginCheck"
     maxHeapSize = "256m"
 }
 
@@ -336,3 +372,9 @@ tasks.register<org.gradle.api.tasks.compile.JavaCompile>("lintJava") {
     options.compilerArgs.addAll(listOf("-proc:none", "-Xlint:divzero,empty,fallthrough,finally,-removal", "-Werror"))
 }
 tasks.named("check") { dependsOn("lintJava") }
+
+tasks.register("regressionCheck") {
+    group = "verification"
+    dependsOn("codecCheck", "trackCollisionCheck", "mixinCheck")
+}
+tasks.named("check") { dependsOn("regressionCheck") }

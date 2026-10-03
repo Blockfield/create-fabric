@@ -21,6 +21,11 @@ just build
 
 `just format` applies formatting. The mod JAR is written to `build/libs/`.
 
+`just test` runs the JVM regression checks; `just check` and `just build` also run Java compiler lint.
+CI verifies lint and formatting in Code standards, and JVM lint, regression checks and headless GameTests in Build.
+Run `./gradlew runGametestServer` to execute the existing processing, contraption, fluid and item scenarios;
+reports and its isolated test world are written under `build/`.
+
 ## Releases
 
 After committing to `main`, run `scripts/bump-fork.sh create` from

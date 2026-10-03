@@ -33,6 +33,7 @@ import net.fabricmc.fabric.api.transfer.v1.transaction.Transaction;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.gametest.framework.GameTestAssertException;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.gametest.framework.GameTestInfo;
 import net.minecraft.server.level.ServerLevel;
@@ -58,9 +59,11 @@ import org.apache.commons.lang3.tuple.MutablePair;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Supplier;
 
 /**
  * A helper class expanding the functionality of {@link GameTestHelper}. This class may replace the
@@ -214,6 +217,43 @@ public class CreateGameTestHelper extends GameTestHelper {
         return behavior;
     }
 
+    public String snapshot(BlockPos... positions) {
+        List<String> snapshots = new ArrayList<>();
+        for (BlockPos pos : positions) {
+            BlockEntity blockEntity = getLevel().getBlockEntity(absolutePos(pos));
+            snapshots.add(
+                    pos
+                            + " "
+                            + getBlockState(pos)
+                            + " entityTicking="
+                            + getLevel().isPositionEntityTicking(absolutePos(pos))
+                            + " "
+                            + (blockEntity == null
+                                    ? "no block entity"
+                                    : blockEntity.saveWithFullMetadata(
+                                            getLevel().registryAccess())));
+        }
+        return snapshots.toString();
+    }
+
+    public void succeedWhenWithDiagnostics(Runnable assertions, Supplier<String> diagnostics) {
+        succeedWhen(
+                () -> {
+                    try {
+                        assertions.run();
+                    } catch (GameTestAssertException failure) {
+                        fail(
+                                failure.getMessage()
+                                        + "; tick="
+                                        + getTick()
+                                        + "; forcedChunks="
+                                        + getLevel().getForcedChunks().size()
+                                        + "; snapshot: "
+                                        + diagnostics.get());
+                    }
+                });
+    }
+
     // entities
 
     /** Spawn an item entity at the given position with no velocity. */
@@ -299,8 +339,26 @@ public class CreateGameTestHelper extends GameTestHelper {
      */
     public void assertFluidPresent(FluidStack fluid, BlockPos pos) {
         FluidStack contained = getTankContents(pos);
-        if (!FluidStack.isSameFluidSameComponents(fluid, contained)) fail("Different fluids");
-        if (fluid.getAmount() != contained.getAmount()) fail("Different amounts");
+        if (!FluidStack.isSameFluidSameComponents(fluid, contained))
+            fail(
+                    "Different fluids: expected "
+                            + fluid.getVariant()
+                            + " x "
+                            + fluid.getAmount()
+                            + ", contained "
+                            + contained.getVariant()
+                            + " x "
+                            + contained.getAmount());
+        if (fluid.getAmount() != contained.getAmount())
+            fail(
+                    "Different amounts: expected "
+                            + fluid.getVariant()
+                            + " x "
+                            + fluid.getAmount()
+                            + ", contained "
+                            + contained.getVariant()
+                            + " x "
+                            + contained.getAmount());
     }
 
     /** Assert that the given tank holds no fluid. */
@@ -428,7 +486,13 @@ public class CreateGameTestHelper extends GameTestHelper {
                         stack -> ItemStack.isSameItemSameComponents(stack, item),
                         item.getCount(),
                         true);
-        if (extracted.isEmpty()) fail("item not present: " + item);
+        if (extracted.isEmpty()) {
+            List<String> contents = new ArrayList<>();
+            for (StorageView<ItemVariant> view : storage.nonEmptyViews()) {
+                contents.add(view.getResource() + " x " + view.getAmount());
+            }
+            fail("item not present: " + item + "; stored variants: " + contents);
+        }
     }
 
     // time

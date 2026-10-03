@@ -435,7 +435,11 @@ public class FluidDrainingBehaviour extends FluidManipulationBehaviour {
     }
 
     public FluidStack getDrainableFluid(BlockPos rootPos) {
-        try (Transaction t = Transaction.openOuter()) { // simulate pullNext
+        return getDrainableFluid(rootPos, null);
+    }
+
+    public FluidStack getDrainableFluid(BlockPos rootPos, TransactionContext parent) {
+        try (Transaction t = Transaction.openNested(parent)) { // simulate pullNext
             if (fluid == null || isSearching() || !pullNext(rootPos, t)) {
                 return FluidStack.EMPTY;
             }

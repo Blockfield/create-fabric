@@ -5,6 +5,7 @@ import com.mojang.serialization.JsonOps;
 
 import net.minecraft.SharedConstants;
 import net.minecraft.server.Bootstrap;
+import net.minecraft.world.item.Items;
 
 /** Проверка обеих форм результата: {@code ./gradlew codecCheck}. */
 public class ProcessingOutputCodecCheck {
@@ -19,6 +20,26 @@ public class ProcessingOutputCodecCheck {
         ProcessingOutput field = parse("{\"item\":{\"id\":\"minecraft:stone\"},\"count\":8}");
         if (field.getStack().getCount() != 8)
             throw new AssertionError("field count " + field.getStack().getCount());
+
+        if (bare.getStack().getItem() != Items.STONE || field.getStack().getItem() != Items.STONE)
+            throw new AssertionError("result item must survive both codec forms");
+        ProcessingOutput defaultCount = parse("{\"item\":{\"id\":\"minecraft:stone\"}}");
+        if (defaultCount.getStack().getCount() != 1 || defaultCount.getChance() != 1)
+            throw new AssertionError("omitted count and chance must default to one");
+        ProcessingOutput probabilistic =
+                parse("{\"item\":{\"id\":\"minecraft:stone\"},\"count\":3,\"chance\":0.25}");
+        String probabilisticJson =
+                ProcessingOutput.CODEC
+                        .encodeStart(JsonOps.INSTANCE, probabilistic)
+                        .getOrThrow()
+                        .toString();
+        ProcessingOutput roundTrip = parse(probabilisticJson);
+        if (roundTrip.getStack().getCount() != 3 || roundTrip.getChance() != 0.25f)
+            throw new AssertionError("round-trip must preserve count and chance");
+        if (ProcessingOutput.CODEC
+                .parse(JsonOps.INSTANCE, JsonParser.parseString("{}"))
+                .error()
+                .isEmpty()) throw new AssertionError("missing item must be rejected");
 
         String encoded =
                 ProcessingOutput.CODEC.encodeStart(JsonOps.INSTANCE, bare).getOrThrow().toString();

@@ -1,25 +1,35 @@
 package com.simibubi.create.infrastructure.gametest.tests;
 
 import com.simibubi.create.AllBlockEntityTypes;
+import com.simibubi.create.AllBlocks;
+import com.simibubi.create.content.fluids.drain.ItemDrainBlockEntity;
 import com.simibubi.create.content.fluids.hosePulley.HosePulleyFluidHandler;
 import com.simibubi.create.content.fluids.pipes.valve.FluidValveBlock;
+import com.simibubi.create.content.fluids.potion.PotionFluid;
+import com.simibubi.create.content.fluids.potion.PotionFluid.BottleType;
+import com.simibubi.create.content.fluids.transfer.GenericItemEmptying;
+import com.simibubi.create.content.kinetics.belt.behaviour.DirectBeltInputBehaviour;
 import com.simibubi.create.content.kinetics.gauge.SpeedGaugeBlockEntity;
 import com.simibubi.create.content.kinetics.gauge.StressGaugeBlockEntity;
 import com.simibubi.create.content.kinetics.waterwheel.WaterWheelBlockEntity;
 import com.simibubi.create.foundation.fluid.SmartFluidTank;
 import com.simibubi.create.infrastructure.fabric.transfer.TransferUtil;
 import com.simibubi.create.infrastructure.fabric.transfer.fluid.FluidStack;
+import com.simibubi.create.infrastructure.fabric.transfer.fluid.FluidTank;
 import com.simibubi.create.infrastructure.gametest.CreateGameTestHelper;
 import com.simibubi.create.infrastructure.gametest.GameTestGroup;
 
 import net.fabricmc.fabric.api.transfer.v1.fluid.FluidConstants;
 import net.fabricmc.fabric.api.transfer.v1.fluid.FluidVariant;
 import net.fabricmc.fabric.api.transfer.v1.storage.Storage;
+import net.fabricmc.fabric.api.transfer.v1.transaction.Transaction;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.core.Holder;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestAssertException;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.EntityType;
@@ -46,6 +56,90 @@ import java.util.stream.Collectors;
 
 @GameTestGroup(path = "fluids")
 public class TestFluids {
+    @GameTest(template = "spouting", timeoutTicks = CreateGameTestHelper.TEN_SECONDS)
+    public static void bucketEmptyingAndDrain(CreateGameTestHelper helper) {
+        ItemStack bucket = new ItemStack(Items.WATER_BUCKET);
+        var simulated = GenericItemEmptying.emptyItem(helper.getLevel(), bucket, true);
+        helper.assertTrue(
+                simulated.getFirst().getFluid() == Fluids.WATER
+                        && simulated.getFirst().getAmount() == FluidConstants.BUCKET,
+                "Bucket simulation produced wrong fluid");
+        helper.assertTrue(simulated.getSecond().is(Items.BUCKET), "Simulation lost empty bucket");
+        helper.assertTrue(
+                bucket.is(Items.WATER_BUCKET) && bucket.getCount() == 1,
+                "Simulation consumed bucket");
+
+        try (Transaction outer = Transaction.openOuter()) {
+            var nested = GenericItemEmptying.emptyItem(helper.getLevel(), bucket, true, outer);
+            helper.assertTrue(
+                    nested.getFirst().getAmount() == FluidConstants.BUCKET,
+                    "Nested bucket simulation produced wrong amount");
+            helper.assertTrue(
+                    nested.getSecond().is(Items.BUCKET), "Nested simulation lost empty bucket");
+            outer.commit();
+        }
+        helper.assertTrue(
+                bucket.is(Items.WATER_BUCKET) && bucket.getCount() == 1,
+                "Nested simulation consumed bucket");
+
+        ItemStack consumed = bucket.copy();
+        var emptied = GenericItemEmptying.emptyItem(helper.getLevel(), consumed, false);
+        helper.assertTrue(consumed.isEmpty(), "Real emptying did not consume bucket");
+        helper.assertTrue(
+                emptied.getFirst().getAmount() == FluidConstants.BUCKET
+                        && emptied.getSecond().is(Items.BUCKET),
+                "Real emptying lost fluid or empty bucket");
+
+        BlockPos pos = new BlockPos(5, 2, 1);
+        helper.setBlock(pos, Blocks.AIR);
+        helper.setBlock(pos, AllBlocks.ITEM_DRAIN.get());
+        ItemDrainBlockEntity drain =
+                helper.getBlockEntity(AllBlockEntityTypes.ITEM_DRAIN.get(), pos);
+        DirectBeltInputBehaviour input = helper.getBehavior(pos, DirectBeltInputBehaviour.TYPE);
+        helper.assertTrue(
+                input.handleInsertion(bucket, Direction.WEST, false).isEmpty(),
+                "Item drain rejected water bucket");
+        helper.succeedWhen(
+                () -> {
+                    helper.assertFluidPresent(
+                            new FluidStack(Fluids.WATER, FluidConstants.BUCKET), pos);
+                    helper.assertTrue(
+                            drain.getHeldItemStack().is(Items.BUCKET),
+                            "Item drain did not return empty bucket");
+                });
+    }
+
+    @GameTest(template = "spouting")
+    public static void fluidTankSerialization(CreateGameTestHelper helper) {
+        FluidTank source = new FluidTank(FluidConstants.BUCKET * 2);
+        FluidTank restored = new FluidTank(FluidConstants.BUCKET * 2);
+        CompoundTag tag = new CompoundTag();
+        tag.putBoolean("Pulling", true);
+        List<FluidStack> cases =
+                List.of(
+                        new FluidStack(Fluids.WATER, FluidConstants.BUCKET / 2),
+                        new FluidStack(Fluids.LAVA, FluidConstants.BUCKET),
+                        PotionFluid.of(
+                                FluidConstants.BOTTLE,
+                                new PotionContents(Potions.FIRE_RESISTANCE),
+                                BottleType.SPLASH),
+                        FluidStack.EMPTY);
+        for (FluidStack expected : cases) {
+            source.setFluid(expected);
+            source.writeToNBT(helper.getLevel().registryAccess(), tag);
+            restored.readFromNBT(helper.getLevel().registryAccess(), tag);
+            helper.assertTrue(
+                    restored.getFluidAmount() == expected.getAmount(),
+                    "Fluid tank round-trip changed amount");
+            helper.assertTrue(
+                    restored.getFluid().getVariant().equals(expected.getVariant()),
+                    "Fluid tank round-trip changed fluid or components");
+            helper.assertTrue(tag.getBoolean("Pulling"), "Fluid tank erased unrelated pipe data");
+        }
+        helper.assertTrue(!tag.contains("Fluid"), "Empty tank retained stale saved fluid");
+        helper.succeed();
+    }
+
     @GameTest(template = "hose_pulley_transfer", timeoutTicks = CreateGameTestHelper.TWENTY_SECONDS)
     public static void hosePulleyTransfer(CreateGameTestHelper helper) {
         BlockPos lever = new BlockPos(7, 7, 5);
@@ -320,7 +414,7 @@ public class TestFluids {
         BlockPos drainValve = new BlockPos(3, 3, 1);
         BlockPos lamp = new BlockPos(1, 3, 1);
         BlockPos tank = new BlockPos(2, 2, 1);
-        helper.succeedWhen(
+        helper.succeedWhenWithDiagnostics(
                 () -> {
                     if (!helper.getBlockState(leftValve)
                             .getValue(FluidValveBlock.ENABLED)) { // step 1
@@ -351,7 +445,16 @@ public class TestFluids {
                         helper.assertBlockProperty(
                                 lamp, RedstoneLampBlock.LIT, false); // should be off now
                     }
-                });
+                },
+                () ->
+                        helper.snapshot(
+                                leftTank,
+                                rightTank,
+                                tank,
+                                tank.west(),
+                                leftValve,
+                                rightValve,
+                                drainValve));
     }
 
     @GameTest(template = "open_pipes")

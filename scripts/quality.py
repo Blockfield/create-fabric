@@ -163,7 +163,16 @@ def formatting(files, write=False):
         if f.endswith(".md")
         or (f.startswith(".github/") and f.endswith((".yml", ".yaml")))
     ]
-    docs.extend(f for f in (".mcp.json", "pnpm-workspace.yaml") if (ROOT / f).is_file())
+    docs.extend(
+        f
+        for f in (
+            ".mcp.json",
+            "pnpm-workspace.yaml",
+            "src/gametest/resources/fabric.mod.json",
+            "src/gametest/resources/create-gametest.mixins.json",
+        )
+        if (ROOT / f).is_file()
+    )
     each(["prettier", "--write" if write else "--check"], docs)
     if (ROOT / "justfile").is_file():
         run("just", "--fmt", *([] if write else ["--check"]))
@@ -214,6 +223,15 @@ def compile_check(files):
 
 
 def tests():
+    wrapper = ROOT / "gradlew"
+    if wrapper.is_file():
+        run(
+            gradle_command(wrapper),
+            "regressionCheck",
+            "--no-daemon",
+            "--max-workers=2",
+            "-Dorg.gradle.jvmargs=-Xmx2G",
+        )
     if (ROOT / "package.json").is_file():
         import json
 

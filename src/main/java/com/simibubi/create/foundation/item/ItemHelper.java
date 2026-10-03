@@ -248,15 +248,12 @@ public class ItemHelper {
                     // let's try a different target
                     if (otherTargets != null) {
                         t.abort();
-                        try (Transaction nested = Transaction.openOuter()) {
-                            for (ItemVariant target : otherTargets) {
-                                // try again, but now only match the existing matches we've found
-                                ItemStack successfulExtraction =
-                                        extract(inv, target::matches, mode, amount, simulate);
-                                if (!successfulExtraction.isEmpty()) {
-                                    if (!simulate) nested.commit();
-                                    return successfulExtraction;
-                                }
+                        for (ItemVariant target : otherTargets) {
+                            // try again, but now only match the existing matches we've found
+                            ItemStack successfulExtraction =
+                                    extract(inv, target::matches, mode, amount, simulate);
+                            if (!successfulExtraction.isEmpty()) {
+                                return successfulExtraction;
                             }
                         }
                     }

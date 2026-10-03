@@ -3,7 +3,10 @@ package com.simibubi.create.infrastructure.gametest.tests;
 import com.simibubi.create.AllBlockEntityTypes;
 import com.simibubi.create.AllBlocks;
 import com.simibubi.create.AllItems;
+import com.simibubi.create.content.kinetics.belt.behaviour.DirectBeltInputBehaviour;
+import com.simibubi.create.content.kinetics.mechanicalArm.ArmInteractionPoint;
 import com.simibubi.create.content.logistics.depot.DepotBlockEntity;
+import com.simibubi.create.content.logistics.funnel.FunnelBlock;
 import com.simibubi.create.content.logistics.tunnel.BrassTunnelBlockEntity.SelectionMode;
 import com.simibubi.create.content.processing.burner.BlazeBurnerBlock;
 import com.simibubi.create.content.processing.burner.BlazeBurnerBlock.HeatLevel;
@@ -11,7 +14,11 @@ import com.simibubi.create.content.redstone.nixieTube.NixieTubeBlockEntity;
 import com.simibubi.create.content.trains.display.FlapDisplayBlockEntity;
 import com.simibubi.create.content.trains.display.FlapDisplayLayout;
 import com.simibubi.create.content.trains.display.FlapDisplaySection;
+import com.simibubi.create.foundation.blockEntity.behaviour.inventory.InvManipulationBehaviour;
+import com.simibubi.create.foundation.item.ItemHelper;
+import com.simibubi.create.foundation.item.ItemHelper.ExtractionCountMode;
 import com.simibubi.create.infrastructure.fabric.transfer.TransferUtil;
+import com.simibubi.create.infrastructure.fabric.transfer.item.ItemStackHandler;
 import com.simibubi.create.infrastructure.gametest.CreateGameTestHelper;
 import com.simibubi.create.infrastructure.gametest.GameTestGroup;
 
@@ -19,8 +26,10 @@ import it.unimi.dsi.fastutil.objects.Object2LongMap;
 
 import net.fabricmc.fabric.api.transfer.v1.item.ItemVariant;
 import net.fabricmc.fabric.api.transfer.v1.storage.Storage;
+import net.fabricmc.fabric.api.transfer.v1.transaction.Transaction;
 import net.minecraft.Util;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.core.Holder;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
@@ -36,6 +45,7 @@ import net.minecraft.world.item.enchantment.EnchantmentInstance;
 import net.minecraft.world.item.enchantment.Enchantments;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.RedstoneLampBlock;
+import net.minecraft.world.level.block.entity.BlockEntityType;
 
 import java.util.List;
 import java.util.Locale;
@@ -45,6 +55,95 @@ import java.util.stream.Stream;
 
 @GameTestGroup(path = "items")
 public class TestItems {
+    @GameTest(template = "arm_purgatory")
+    public static void exactExtractionFallback(CreateGameTestHelper helper) {
+        ItemStackHandler inventory = new ItemStackHandler(2);
+        inventory.setStackInSlot(0, new ItemStack(Items.STONE));
+        inventory.setStackInSlot(1, new ItemStack(Items.DIAMOND, 3));
+        ItemStack expected = new ItemStack(Items.DIAMOND, 2);
+
+        ItemStack simulated =
+                ItemHelper.extract(inventory, stack -> true, ExtractionCountMode.EXACTLY, 2, true);
+        helper.assertTrue(
+                ItemStack.matches(expected, simulated), "Exact fallback chose wrong item");
+        helper.assertTrue(inventory.getStackInSlot(0).getCount() == 1, "Simulation consumed stone");
+        helper.assertTrue(
+                inventory.getStackInSlot(1).getCount() == 3, "Simulation consumed diamonds");
+
+        ItemStack extracted =
+                ItemHelper.extract(inventory, stack -> true, ExtractionCountMode.EXACTLY, 2, false);
+        helper.assertTrue(
+                ItemStack.matches(expected, extracted), "Exact fallback extracted wrong item");
+        helper.assertTrue(
+                inventory.getStackInSlot(0).getCount() == 1, "Fallback consumed rejected stone");
+        helper.assertTrue(
+                inventory.getStackInSlot(1).getCount() == 1, "Fallback consumed wrong amount");
+        helper.assertTrue(
+                ItemHelper.extract(inventory, stack -> true, ExtractionCountMode.EXACTLY, 2, false)
+                        .isEmpty(),
+                "Insufficient exact extraction succeeded");
+        helper.assertTrue(
+                inventory.getStackInSlot(0).getCount() == 1
+                        && inventory.getStackInSlot(1).getCount() == 1,
+                "Insufficient exact extraction consumed items");
+        helper.succeed();
+    }
+
+    @GameTest(template = "arm_purgatory")
+    public static void armFunnelTransactions(CreateGameTestHelper helper) {
+        BlockPos chest = new BlockPos(3, 2, 1);
+        BlockPos funnel = chest.north();
+        helper.setBlock(chest, Blocks.AIR);
+        helper.setBlock(chest, Blocks.CHEST);
+        var chestEntity = helper.getBlockEntity(BlockEntityType.CHEST, chest);
+        helper.setBlock(
+                funnel,
+                AllBlocks.ANDESITE_FUNNEL
+                        .get()
+                        .defaultBlockState()
+                        .setValue(FunnelBlock.FACING, Direction.NORTH)
+                        .setValue(FunnelBlock.EXTRACTING, false));
+        InvManipulationBehaviour inserter =
+                helper.getBehavior(funnel, InvManipulationBehaviour.TYPE);
+        inserter.findNewCapability();
+        ArmInteractionPoint point =
+                ArmInteractionPoint.create(
+                        helper.getLevel(),
+                        helper.absolutePos(funnel),
+                        helper.getBlockState(funnel));
+        helper.assertTrue(point != null, "Funnel arm interaction point missing");
+        ItemStack stack = new ItemStack(Items.DIAMOND, 4);
+
+        try (Transaction outer = Transaction.openOuter()) {
+            helper.assertTrue(
+                    point.insert(stack, outer).isEmpty(), "Arm funnel insertion rejected items");
+            helper.assertTrue(
+                    ItemStack.matches(stack, chestEntity.getItem(0)),
+                    "Arm insertion put wrong amount in chest");
+        }
+        helper.assertContainerEmpty(chest);
+
+        try (Transaction outer = Transaction.openOuter()) {
+            helper.assertTrue(
+                    inserter.simulate().insert(stack, outer).isEmpty(),
+                    "Simulated funnel insertion rejected items");
+            helper.assertContainerEmpty(chest);
+            outer.commit();
+        }
+        helper.assertContainerEmpty(chest);
+
+        try (Transaction outer = Transaction.openOuter()) {
+            helper.assertTrue(
+                    point.insert(stack, outer).isEmpty(), "Committed arm insertion rejected items");
+            outer.commit();
+        }
+        helper.assertTrue(
+                ItemStack.matches(stack, chestEntity.getItem(0)),
+                "Arm insertion commit lost items or duplicated them");
+        helper.assertTrue(stack.getCount() == 4, "Arm funnel insertion mutated caller's stack");
+        helper.succeed();
+    }
+
     @GameTest(template = "andesite_tunnel_split")
     public static void andesiteTunnelSplit(CreateGameTestHelper helper) {
         BlockPos lever = new BlockPos(2, 6, 2);
@@ -103,6 +202,8 @@ public class TestItems {
                         helper.fail("Unexpected count on depot 1: " + held1Count);
                     if (!held2Empty && held2Count != 1)
                         helper.fail("Unexpected count on depot 2: " + held2Count);
+                    if (held1Count + held2Count != 1)
+                        helper.fail("Arm simulation duplicated the transferred item");
                 });
     }
 
@@ -379,7 +480,9 @@ public class TestItems {
         for (int i = 0; i < 18; i++) { // insert 18 stacks
             TransferUtil.insert(chestStorage, diamondStack);
         }
-        helper.succeedWhen(() -> helper.assertBlockProperty(lamp, RedstoneLampBlock.LIT, true));
+        helper.succeedWhenWithDiagnostics(
+                () -> helper.assertBlockProperty(lamp, RedstoneLampBlock.LIT, true),
+                () -> helper.snapshot(chest, chest.east(), lamp));
     }
 
     @GameTest(template = "storages", timeoutTicks = CreateGameTestHelper.TEN_SECONDS)
@@ -409,12 +512,74 @@ public class TestItems {
         helper.assertNixiePower(bigNixie, 0);
         helper.whenSecondsPassed(3, () -> helper.spawnItems(bigInput, Items.BREAD, 64 * 240));
 
-        helper.succeedWhen(
+        helper.succeedWhenWithDiagnostics(
                 () -> {
                     helper.assertNixiePower(smallNixie, 7);
                     helper.assertNixiePower(medNixie, 7);
                     helper.assertNixiePower(bigNixie, 7);
-                });
+                },
+                () ->
+                        helper.snapshot(
+                                new BlockPos(1, 2, 1),
+                                new BlockPos(1, 3, 1),
+                                smallNixie,
+                                new BlockPos(1, 2, 3),
+                                new BlockPos(1, 4, 4),
+                                medNixie,
+                                new BlockPos(1, 2, 6),
+                                new BlockPos(1, 5, 8),
+                                bigNixie));
+    }
+
+    @GameTest(template = "arm_purgatory")
+    public static void depotInsertionTransactions(CreateGameTestHelper helper) {
+        BlockPos pos = new BlockPos(3, 2, 1);
+        helper.setBlock(pos, Blocks.AIR);
+        helper.setBlock(pos, AllBlocks.DEPOT.get());
+        DepotBlockEntity depot = helper.getBlockEntity(AllBlockEntityTypes.DEPOT.get(), pos);
+        DirectBeltInputBehaviour input = helper.getBehavior(pos, DirectBeltInputBehaviour.TYPE);
+        ItemStack stack = new ItemStack(Items.DIAMOND, 4);
+
+        helper.assertTrue(
+                input.handleInsertion(stack, Direction.NORTH, true).isEmpty(),
+                "Standalone simulation rejected insertion");
+        helper.assertTrue(depot.getHeldItem().isEmpty(), "Standalone simulation changed depot");
+
+        try (Transaction outer = Transaction.openOuter()) {
+            helper.assertTrue(
+                    input.handleInsertion(stack, Direction.NORTH, true).isEmpty(),
+                    "Nested simulation rejected insertion");
+            helper.assertTrue(depot.getHeldItem().isEmpty(), "Nested simulation changed depot");
+            outer.commit();
+        }
+        helper.assertTrue(depot.getHeldItem().isEmpty(), "Outer commit retained simulated items");
+
+        try (Transaction outer = Transaction.openOuter()) {
+            helper.assertTrue(
+                    input.handleInsertion(stack, Direction.NORTH, false).isEmpty(),
+                    "Nested insertion rejected items");
+            helper.assertTrue(
+                    ItemStack.matches(stack, depot.getHeldItem()),
+                    "Nested insertion did not put items on depot");
+        }
+        helper.assertTrue(depot.getHeldItem().isEmpty(), "Outer abort retained inserted items");
+
+        try (Transaction outer = Transaction.openOuter()) {
+            input.handleInsertion(stack, Direction.NORTH, false);
+            outer.commit();
+        }
+        helper.assertTrue(
+                ItemStack.matches(stack, depot.getHeldItem()), "Outer commit lost inserted items");
+
+        depot.setHeldItem(ItemStack.EMPTY);
+        helper.assertTrue(
+                input.handleInsertion(stack, Direction.NORTH, false).isEmpty(),
+                "Standalone insertion rejected items");
+        helper.assertTrue(
+                ItemStack.matches(stack, depot.getHeldItem()),
+                "Standalone insertion lost inserted items");
+        helper.assertTrue(stack.getCount() == 4, "Insertion mutated caller's stack");
+        helper.succeed();
     }
 
     @GameTest(template = "depot_comparator_output")

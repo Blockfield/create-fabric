@@ -311,7 +311,7 @@ public class OpenEndedPipe extends FlowSource {
         @Override
         public FluidVariant getResource() {
             if (!super.isResourceBlank()) return super.getResource();
-            try (Transaction t = Transaction.openOuter()) {
+            try (Transaction t = Transaction.openNested(Transaction.getCurrentUnsafe())) {
                 FluidStack stack = removeFluidFromSpace(t);
                 return stack.getVariant();
             }

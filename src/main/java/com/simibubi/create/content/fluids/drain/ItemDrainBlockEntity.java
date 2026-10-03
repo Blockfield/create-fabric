@@ -263,7 +263,7 @@ public class ItemDrainBlockEntity extends SmartBlockEntity
                 return true;
             }
 
-            emptyItem = GenericItemEmptying.emptyItem(level, heldItem.stack.copy(), false);
+            emptyItem = GenericItemEmptying.emptyItem(level, heldItem.stack.copy(), false, t);
             award(AllAdvancements.DRAIN);
 
             // Process finished
@@ -271,7 +271,7 @@ public class ItemDrainBlockEntity extends SmartBlockEntity
             if (!out.isEmpty()) heldItem.stack = out;
             else heldItem = null;
             internalTank.allowInsertion();
-            TransferUtil.insert(internalTank.getPrimaryHandler(), fluidFromItem);
+            TransferUtil.insert(internalTank.getPrimaryHandler(), fluidFromItem, t);
             t.commit();
             internalTank.forbidInsertion();
             notifyUpdate();

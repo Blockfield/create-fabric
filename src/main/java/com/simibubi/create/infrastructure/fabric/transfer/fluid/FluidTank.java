@@ -41,13 +41,15 @@ public class FluidTank extends SingleFluidStorage {
     protected void onContentsChanged() {}
 
     public void readFromNBT(HolderLookup.Provider registries, CompoundTag nbt) {
-        this.setFluid(FluidStack.parseOptional(registries, nbt));
+        this.setFluid(FluidStack.parseOptional(registries, nbt.getCompound("Fluid")));
     }
 
     public CompoundTag writeToNBT(HolderLookup.Provider registries, CompoundTag nbt) {
         FluidStack fluid = this.getFluid();
         if (!fluid.isEmpty()) {
             nbt.put("Fluid", fluid.save(registries));
+        } else {
+            nbt.remove("Fluid");
         }
         return nbt;
     }
