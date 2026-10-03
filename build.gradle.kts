@@ -355,6 +355,13 @@ tasks.register<JavaExec>("trackCollisionCheck") {
     maxHeapSize = "256m"
 }
 
+tasks.register<JavaExec>("mixinCheck") {
+    dependsOn(tasks.testClasses)
+    classpath = sourceSets["test"].runtimeClasspath + sourceSets["main"].compileClasspath
+    mainClass = "com.simibubi.create.foundation.mixin.CreateMixinPluginCheck"
+    maxHeapSize = "256m"
+}
+
 tasks.register<org.gradle.api.tasks.compile.JavaCompile>("lintJava") {
     dependsOn("testClasses")
     source(sourceSets["main"].allJava, sourceSets["test"].allJava)
@@ -368,6 +375,6 @@ tasks.named("check") { dependsOn("lintJava") }
 
 tasks.register("regressionCheck") {
     group = "verification"
-    dependsOn("codecCheck", "trackCollisionCheck")
+    dependsOn("codecCheck", "trackCollisionCheck", "mixinCheck")
 }
 tasks.named("check") { dependsOn("regressionCheck") }
