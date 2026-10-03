@@ -49,8 +49,10 @@ jobs:
           import xml.etree.ElementTree as ET
           report = ET.parse("build/gametest-results.xml").getroot()
           cases = report.findall(".//testcase")
-          assert len(cases) >= 67, "Expected 66 Create GameTests plus the Porting Lib smoke test"
+          create_cases = [case for case in cases if case.get("classname", "").startswith("create:")]
+          assert len(create_cases) >= 66 and len(cases) >= 67, "Expected 66 Create GameTests plus the Porting Lib smoke test"
           assert not report.findall(".//failure") + report.findall(".//error"), "GameTests reported failures"
+          assert not report.findall(".//skipped"), "GameTests were skipped"
           print(f"{len(cases)} GameTests passed")
           PYTEST
       - name: Upload JVM test reports
