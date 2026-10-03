@@ -186,11 +186,23 @@ sourceSets.named("main") {
     }
 }
 
+val compileGametestFixtures =
+    tasks.register<JavaCompile>("compileGametestFixtures") {
+        dependsOn(tasks.classes)
+        source("src/gametest/java")
+        classpath = sourceSets["main"].compileClasspath + sourceSets["main"].output
+        destinationDirectory = layout.buildDirectory.dir("classes/java/gametest")
+        options.annotationProcessorPath = files()
+        options.compilerArgs.addAll(listOf("-proc:none", "-Xlint:all", "-Werror"))
+    }
+tasks.named("check") { dependsOn(compileGametestFixtures) }
+
 val gametestFixtures =
     tasks.register<Jar>("gametestFixtures") {
         archiveFileName = "create-gametest-fixtures.jar"
         destinationDirectory = layout.buildDirectory.dir("gametest-fixtures")
         from("src/gametest/resources")
+        from(compileGametestFixtures.flatMap { it.destinationDirectory })
         entryCompression = org.gradle.api.tasks.bundling.ZipEntryCompression.STORED
         isPreserveFileTimestamps = false
         isReproducibleFileOrder = true

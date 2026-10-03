@@ -169,6 +169,7 @@ def formatting(files, write=False):
             ".mcp.json",
             "pnpm-workspace.yaml",
             "src/gametest/resources/fabric.mod.json",
+            "src/gametest/resources/create-gametest.mixins.json",
         )
         if (ROOT / f).is_file()
     )

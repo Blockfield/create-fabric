@@ -4,5 +4,6 @@
   "version": "1",
   "name": "Create GameTest Fixtures",
   "environment": "server",
-  "license": "LGPL"
+  "license": "LGPL",
+  "mixins": ["create-gametest.mixins.json"]
 }
