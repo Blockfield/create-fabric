@@ -163,7 +163,15 @@ def formatting(files, write=False):
         if f.endswith(".md")
         or (f.startswith(".github/") and f.endswith((".yml", ".yaml")))
     ]
-    docs.extend(f for f in (".mcp.json", "pnpm-workspace.yaml") if (ROOT / f).is_file())
+    docs.extend(
+        f
+        for f in (
+            ".mcp.json",
+            "pnpm-workspace.yaml",
+            "src/gametest/resources/fabric.mod.json",
+        )
+        if (ROOT / f).is_file()
+    )
     each(["prettier", "--write" if write else "--check"], docs)
     if (ROOT / "justfile").is_file():
         run("just", "--fmt", *([] if write else ["--check"]))
