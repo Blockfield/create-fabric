@@ -102,7 +102,16 @@ public class TestMisc {
                                     AllBlockEntityTypes.THRESHOLD_SWITCH.get(), switchPos);
                     int level = switchBe.getStockLevel();
                     int expectedLevel = helper.absolutePos(finalPos).getY();
-                    if (level != expectedLevel) helper.fail("Unexpected level: " + level);
+                    if (level != expectedLevel)
+                        helper.fail(
+                                "Unexpected level: "
+                                        + level
+                                        + "; bounds: "
+                                        + switchBe.getMinLevel()
+                                        + ".."
+                                        + switchBe.getMaxLevel()
+                                        + "; state: "
+                                        + switchBe.getBlockState());
                 });
     }
 

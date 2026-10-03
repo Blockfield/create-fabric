@@ -58,6 +58,7 @@ import org.apache.commons.lang3.tuple.MutablePair;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -428,7 +429,13 @@ public class CreateGameTestHelper extends GameTestHelper {
                         stack -> ItemStack.isSameItemSameComponents(stack, item),
                         item.getCount(),
                         true);
-        if (extracted.isEmpty()) fail("item not present: " + item);
+        if (extracted.isEmpty()) {
+            List<String> contents = new ArrayList<>();
+            for (StorageView<ItemVariant> view : storage.nonEmptyViews()) {
+                contents.add(view.getResource() + " x " + view.getAmount());
+            }
+            fail("item not present: " + item + "; stored variants: " + contents);
+        }
     }
 
     // time
