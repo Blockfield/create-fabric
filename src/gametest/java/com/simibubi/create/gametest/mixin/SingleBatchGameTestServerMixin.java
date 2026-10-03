@@ -14,7 +14,8 @@ import java.util.Collection;
 
 @Mixin(value = GameTestServer.class, remap = false)
 public abstract class SingleBatchGameTestServerMixin {
-    // ponytail: pinned 1.21.1 CI stalls world behavior in later batches; restore splitting only after
+    // ponytail: pinned 1.21.1 CI stalls world behavior in later batches; restore splitting only
+    // after
     // upstream batch transitions pass the complete suite.
     @Redirect(
             method = "initServer",
