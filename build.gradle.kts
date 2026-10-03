@@ -201,11 +201,12 @@ loom {
 
         register("gametestServer") {
             server()
-            name("Headlesss GameTests")
+            name("Headless GameTests")
             ideConfigGenerated(false) // this run is for CI
             vmArg("-Dfabric-api.gametest")
-            vmArg("-Dfabric-api.gametest.report-file=${layout.buildDirectory}/junit.xml")
-            runDir("run/gametest")
+            vmArg("-Dfabric-api.gametest.report-file=${layout.buildDirectory.file("gametest-results.xml").get().asFile}")
+            vmArg("-Xmx2G")
+            runDir("build/gametest")
         }
 
         named("server") {
@@ -315,13 +316,16 @@ dependencies {
 }
 
 tasks.register<JavaExec>("codecCheck") {
-    classpath = sourceSets["main"].runtimeClasspath
+    dependsOn(tasks.testClasses)
+    classpath = sourceSets["test"].runtimeClasspath + sourceSets["main"].compileClasspath
     mainClass = "com.simibubi.create.content.processing.recipe.ProcessingOutputCodecCheck"
     workingDir = layout.buildDirectory.get().asFile // Bootstrap пишет logs/ в рабочий каталог
+    maxHeapSize = "256m"
 }
 
 tasks.register<JavaExec>("trackCollisionCheck") {
-    classpath = sourceSets["main"].runtimeClasspath
+    dependsOn(tasks.testClasses)
+    classpath = sourceSets["test"].runtimeClasspath + sourceSets["main"].compileClasspath
     mainClass = "com.simibubi.create.content.trains.track.TrackCollisionCheck"
     maxHeapSize = "256m"
 }
@@ -336,3 +340,9 @@ tasks.register<org.gradle.api.tasks.compile.JavaCompile>("lintJava") {
     options.compilerArgs.addAll(listOf("-proc:none", "-Xlint:divzero,empty,fallthrough,finally,-removal", "-Werror"))
 }
 tasks.named("check") { dependsOn("lintJava") }
+
+tasks.register("regressionCheck") {
+    group = "verification"
+    dependsOn("codecCheck", "trackCollisionCheck")
+}
+tasks.named("check") { dependsOn("regressionCheck") }
