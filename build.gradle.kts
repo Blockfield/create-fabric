@@ -186,6 +186,16 @@ sourceSets.named("main") {
     }
 }
 
+val gametestFixtures =
+    tasks.register<Jar>("gametestFixtures") {
+        archiveFileName = "create-gametest-fixtures.jar"
+        destinationDirectory = layout.buildDirectory.dir("gametest-fixtures")
+        from("src/gametest/resources")
+        entryCompression = org.gradle.api.tasks.bundling.ZipEntryCompression.STORED
+        isPreserveFileTimestamps = false
+        isReproducibleFileOrder = true
+    }
+
 loom {
     accessWidenerPath = file("src/main/resources/create.accesswidener")
 
@@ -204,7 +214,7 @@ loom {
             name("Headless GameTests")
             ideConfigGenerated(false) // this run is for CI
             vmArg("-Dfabric-api.gametest")
-            vmArg("-Dfabric.addMods=${file("src/gametest/resources").absolutePath}")
+            vmArg("-Dfabric.addMods=${gametestFixtures.get().archiveFile.get().asFile.absolutePath}")
             vmArg("-Dfabric-api.gametest.report-file=${layout.buildDirectory.file("gametest-results.xml").get().asFile}")
             vmArg("-Xmx2G")
             runDir("build/gametest")
@@ -221,6 +231,8 @@ loom {
         }
     }
 }
+
+tasks.named("runGametestServer") { dependsOn(gametestFixtures) }
 
 configurations {
     // this avoids remapping ponder when it's local
