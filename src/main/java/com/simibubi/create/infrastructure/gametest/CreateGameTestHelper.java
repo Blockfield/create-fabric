@@ -220,7 +220,7 @@ public class CreateGameTestHelper extends GameTestHelper {
     public String snapshot(BlockPos... positions) {
         List<String> snapshots = new ArrayList<>();
         for (BlockPos pos : positions) {
-            BlockEntity blockEntity = getBlockEntity(pos);
+            BlockEntity blockEntity = getLevel().getBlockEntity(absolutePos(pos));
             snapshots.add(
                     pos
                             + " "
@@ -331,12 +331,24 @@ public class CreateGameTestHelper extends GameTestHelper {
     public void assertFluidPresent(FluidStack fluid, BlockPos pos) {
         FluidStack contained = getTankContents(pos);
         if (!FluidStack.isSameFluidSameComponents(fluid, contained))
-            fail("Different fluids: expected " + fluid + ", contained " + contained);
+            fail(
+                    "Different fluids: expected "
+                            + fluid.getVariant()
+                            + " x "
+                            + fluid.getAmount()
+                            + ", contained "
+                            + contained.getVariant()
+                            + " x "
+                            + contained.getAmount());
         if (fluid.getAmount() != contained.getAmount())
             fail(
                     "Different amounts: expected "
+                            + fluid.getVariant()
+                            + " x "
                             + fluid.getAmount()
                             + ", contained "
+                            + contained.getVariant()
+                            + " x "
                             + contained.getAmount());
     }
 
