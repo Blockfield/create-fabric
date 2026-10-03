@@ -51,6 +51,7 @@
     "fabric.EntityAccessor",
     "fabric.EntityMixin",
     "fabric.ServerGamePacketListenerImplAccessor",
+    "fabric.ServerLevelForcedChunksMixin",
     "fabric.SortedArraySetAccessor",
     "fabric.TagAppenderAccessor",
     "fabric.infra.ServerPlayerGameModeMixin",
