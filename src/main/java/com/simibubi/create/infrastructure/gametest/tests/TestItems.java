@@ -3,6 +3,7 @@ package com.simibubi.create.infrastructure.gametest.tests;
 import com.simibubi.create.AllBlockEntityTypes;
 import com.simibubi.create.AllBlocks;
 import com.simibubi.create.AllItems;
+import com.simibubi.create.content.kinetics.belt.behaviour.DirectBeltInputBehaviour;
 import com.simibubi.create.content.logistics.depot.DepotBlockEntity;
 import com.simibubi.create.content.logistics.tunnel.BrassTunnelBlockEntity.SelectionMode;
 import com.simibubi.create.content.processing.burner.BlazeBurnerBlock;
@@ -19,8 +20,10 @@ import it.unimi.dsi.fastutil.objects.Object2LongMap;
 
 import net.fabricmc.fabric.api.transfer.v1.item.ItemVariant;
 import net.fabricmc.fabric.api.transfer.v1.storage.Storage;
+import net.fabricmc.fabric.api.transfer.v1.transaction.Transaction;
 import net.minecraft.Util;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.core.Holder;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
@@ -415,6 +418,57 @@ public class TestItems {
                     helper.assertNixiePower(medNixie, 7);
                     helper.assertNixiePower(bigNixie, 7);
                 });
+    }
+
+    @GameTest(template = "arm_purgatory")
+    public static void depotInsertionTransactions(CreateGameTestHelper helper) {
+        BlockPos pos = new BlockPos(3, 2, 1);
+        helper.setBlock(pos, Blocks.AIR);
+        helper.setBlock(pos, AllBlocks.DEPOT.get());
+        DepotBlockEntity depot = helper.getBlockEntity(AllBlockEntityTypes.DEPOT.get(), pos);
+        DirectBeltInputBehaviour input = helper.getBehavior(pos, DirectBeltInputBehaviour.TYPE);
+        ItemStack stack = new ItemStack(Items.DIAMOND, 4);
+
+        helper.assertTrue(
+                input.handleInsertion(stack, Direction.NORTH, true).isEmpty(),
+                "Standalone simulation rejected insertion");
+        helper.assertTrue(depot.getHeldItem().isEmpty(), "Standalone simulation changed depot");
+
+        try (Transaction outer = Transaction.openOuter()) {
+            helper.assertTrue(
+                    input.handleInsertion(stack, Direction.NORTH, true).isEmpty(),
+                    "Nested simulation rejected insertion");
+            helper.assertTrue(depot.getHeldItem().isEmpty(), "Nested simulation changed depot");
+            outer.commit();
+        }
+        helper.assertTrue(depot.getHeldItem().isEmpty(), "Outer commit retained simulated items");
+
+        try (Transaction outer = Transaction.openOuter()) {
+            helper.assertTrue(
+                    input.handleInsertion(stack, Direction.NORTH, false).isEmpty(),
+                    "Nested insertion rejected items");
+            helper.assertTrue(
+                    ItemStack.matches(stack, depot.getHeldItem()),
+                    "Nested insertion did not put items on depot");
+        }
+        helper.assertTrue(depot.getHeldItem().isEmpty(), "Outer abort retained inserted items");
+
+        try (Transaction outer = Transaction.openOuter()) {
+            input.handleInsertion(stack, Direction.NORTH, false);
+            outer.commit();
+        }
+        helper.assertTrue(
+                ItemStack.matches(stack, depot.getHeldItem()), "Outer commit lost inserted items");
+
+        depot.setHeldItem(ItemStack.EMPTY);
+        helper.assertTrue(
+                input.handleInsertion(stack, Direction.NORTH, false).isEmpty(),
+                "Standalone insertion rejected items");
+        helper.assertTrue(
+                ItemStack.matches(stack, depot.getHeldItem()),
+                "Standalone insertion lost inserted items");
+        helper.assertTrue(stack.getCount() == 4, "Insertion mutated caller's stack");
+        helper.succeed();
     }
 
     @GameTest(template = "depot_comparator_output")
