@@ -3,12 +3,15 @@ package com.simibubi.create.infrastructure.gametest.tests;
 import com.simibubi.create.AllBlockEntityTypes;
 import com.simibubi.create.content.fluids.hosePulley.HosePulleyFluidHandler;
 import com.simibubi.create.content.fluids.pipes.valve.FluidValveBlock;
+import com.simibubi.create.content.fluids.potion.PotionFluid;
+import com.simibubi.create.content.fluids.potion.PotionFluid.BottleType;
 import com.simibubi.create.content.kinetics.gauge.SpeedGaugeBlockEntity;
 import com.simibubi.create.content.kinetics.gauge.StressGaugeBlockEntity;
 import com.simibubi.create.content.kinetics.waterwheel.WaterWheelBlockEntity;
 import com.simibubi.create.foundation.fluid.SmartFluidTank;
 import com.simibubi.create.infrastructure.fabric.transfer.TransferUtil;
 import com.simibubi.create.infrastructure.fabric.transfer.fluid.FluidStack;
+import com.simibubi.create.infrastructure.fabric.transfer.fluid.FluidTank;
 import com.simibubi.create.infrastructure.gametest.CreateGameTestHelper;
 import com.simibubi.create.infrastructure.gametest.GameTestGroup;
 
@@ -20,6 +23,7 @@ import net.minecraft.core.Holder;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestAssertException;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.EntityType;
@@ -46,6 +50,37 @@ import java.util.stream.Collectors;
 
 @GameTestGroup(path = "fluids")
 public class TestFluids {
+    @GameTest(template = "spouting")
+    public static void fluidTankSerialization(CreateGameTestHelper helper) {
+        FluidTank source = new FluidTank(FluidConstants.BUCKET * 2);
+        FluidTank restored = new FluidTank(FluidConstants.BUCKET * 2);
+        CompoundTag tag = new CompoundTag();
+        tag.putBoolean("Pulling", true);
+        List<FluidStack> cases =
+                List.of(
+                        new FluidStack(Fluids.WATER, FluidConstants.BUCKET / 2),
+                        new FluidStack(Fluids.LAVA, FluidConstants.BUCKET),
+                        PotionFluid.of(
+                                FluidConstants.BOTTLE,
+                                new PotionContents(Potions.FIRE_RESISTANCE),
+                                BottleType.SPLASH),
+                        FluidStack.EMPTY);
+        for (FluidStack expected : cases) {
+            source.setFluid(expected);
+            source.writeToNBT(helper.getLevel().registryAccess(), tag);
+            restored.readFromNBT(helper.getLevel().registryAccess(), tag);
+            helper.assertTrue(
+                    restored.getFluidAmount() == expected.getAmount(),
+                    "Fluid tank round-trip changed amount");
+            helper.assertTrue(
+                    restored.getFluid().getVariant().equals(expected.getVariant()),
+                    "Fluid tank round-trip changed fluid or components");
+            helper.assertTrue(tag.getBoolean("Pulling"), "Fluid tank erased unrelated pipe data");
+        }
+        helper.assertTrue(!tag.contains("Fluid"), "Empty tank retained stale saved fluid");
+        helper.succeed();
+    }
+
     @GameTest(template = "hose_pulley_transfer", timeoutTicks = CreateGameTestHelper.TWENTY_SECONDS)
     public static void hosePulleyTransfer(CreateGameTestHelper helper) {
         BlockPos lever = new BlockPos(7, 7, 5);
