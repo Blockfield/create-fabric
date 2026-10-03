@@ -414,7 +414,7 @@ public class TestFluids {
         BlockPos drainValve = new BlockPos(3, 3, 1);
         BlockPos lamp = new BlockPos(1, 3, 1);
         BlockPos tank = new BlockPos(2, 2, 1);
-        helper.succeedWhen(
+        helper.succeedWhenWithDiagnostics(
                 () -> {
                     if (!helper.getBlockState(leftValve)
                             .getValue(FluidValveBlock.ENABLED)) { // step 1
@@ -445,7 +445,16 @@ public class TestFluids {
                         helper.assertBlockProperty(
                                 lamp, RedstoneLampBlock.LIT, false); // should be off now
                     }
-                });
+                },
+                () ->
+                        helper.snapshot(
+                                leftTank,
+                                rightTank,
+                                tank,
+                                tank.west(),
+                                leftValve,
+                                rightValve,
+                                drainValve));
     }
 
     @GameTest(template = "open_pipes")

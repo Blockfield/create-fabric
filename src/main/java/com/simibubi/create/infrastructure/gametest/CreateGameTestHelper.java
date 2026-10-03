@@ -33,6 +33,7 @@ import net.fabricmc.fabric.api.transfer.v1.transaction.Transaction;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.gametest.framework.GameTestAssertException;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.gametest.framework.GameTestInfo;
 import net.minecraft.server.level.ServerLevel;
@@ -62,6 +63,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Supplier;
 
 /**
  * A helper class expanding the functionality of {@link GameTestHelper}. This class may replace the
@@ -215,6 +217,34 @@ public class CreateGameTestHelper extends GameTestHelper {
         return behavior;
     }
 
+    public String snapshot(BlockPos... positions) {
+        List<String> snapshots = new ArrayList<>();
+        for (BlockPos pos : positions) {
+            BlockEntity blockEntity = getBlockEntity(pos);
+            snapshots.add(
+                    pos
+                            + " "
+                            + getBlockState(pos)
+                            + " "
+                            + (blockEntity == null
+                                    ? "no block entity"
+                                    : blockEntity.saveWithFullMetadata(
+                                            getLevel().registryAccess())));
+        }
+        return snapshots.toString();
+    }
+
+    public void succeedWhenWithDiagnostics(Runnable assertions, Supplier<String> diagnostics) {
+        succeedWhen(
+                () -> {
+                    try {
+                        assertions.run();
+                    } catch (GameTestAssertException failure) {
+                        fail(failure.getMessage() + "; snapshot: " + diagnostics.get());
+                    }
+                });
+    }
+
     // entities
 
     /** Spawn an item entity at the given position with no velocity. */
@@ -300,8 +330,14 @@ public class CreateGameTestHelper extends GameTestHelper {
      */
     public void assertFluidPresent(FluidStack fluid, BlockPos pos) {
         FluidStack contained = getTankContents(pos);
-        if (!FluidStack.isSameFluidSameComponents(fluid, contained)) fail("Different fluids");
-        if (fluid.getAmount() != contained.getAmount()) fail("Different amounts");
+        if (!FluidStack.isSameFluidSameComponents(fluid, contained))
+            fail("Different fluids: expected " + fluid + ", contained " + contained);
+        if (fluid.getAmount() != contained.getAmount())
+            fail(
+                    "Different amounts: expected "
+                            + fluid.getAmount()
+                            + ", contained "
+                            + contained.getAmount());
     }
 
     /** Assert that the given tank holds no fluid. */

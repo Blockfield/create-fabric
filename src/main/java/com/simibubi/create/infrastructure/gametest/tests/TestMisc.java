@@ -14,6 +14,7 @@ import com.simibubi.create.infrastructure.gametest.GameTestGroup;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTest;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.EntityType;
@@ -55,14 +56,31 @@ public class TestMisc {
         // run
         cannon.state = State.RUNNING;
         cannon.statusMsg = "running";
-        helper.succeedWhen(
+        helper.succeedWhenWithDiagnostics(
                 () -> {
                     if (cannon.state != State.STOPPED) {
                         helper.fail("Schematicannon not done");
                     }
                     BlockPos lastBlock = new BlockPos(1, 4, 7);
                     helper.assertBlockPresent(Blocks.RED_WOOL, lastBlock);
-                });
+                },
+                () ->
+                        "state="
+                                + cannon.state
+                                + ", status="
+                                + cannon.statusMsg
+                                + ", loaded="
+                                + cannon.printer.isLoaded()
+                                + ", errored="
+                                + cannon.printer.isErrored()
+                                + ", target="
+                                + cannon.printer.getCurrentTarget()
+                                + ", creative="
+                                + cannon.hasCreativeCrate
+                                + ", fuel="
+                                + cannon.remainingFuel
+                                + "; "
+                                + helper.snapshot(cannonPos, cannonPos.north()));
     }
 
     @GameTest(template = "shearing")
@@ -82,11 +100,22 @@ public class TestMisc {
         BlockPos leftLamp = new BlockPos(3, 4, 3);
         BlockPos rightLamp = new BlockPos(1, 4, 3);
         helper.pullLever(lever);
-        helper.succeedWhen(
+        helper.succeedWhenWithDiagnostics(
                 () -> {
                     helper.assertBlockProperty(leftLamp, RedstoneLampBlock.LIT, true);
                     helper.assertBlockProperty(rightLamp, RedstoneLampBlock.LIT, false);
-                });
+                },
+                () ->
+                        helper.snapshot(
+                                lever,
+                                new BlockPos(1, 2, 1),
+                                new BlockPos(3, 2, 1),
+                                new BlockPos(1, 4, 1),
+                                new BlockPos(3, 4, 1),
+                                new BlockPos(1, 4, 2),
+                                new BlockPos(3, 4, 2),
+                                leftLamp,
+                                rightLamp));
     }
 
     @GameTest(template = "threshold_switch_pulley")
@@ -95,7 +124,7 @@ public class TestMisc {
         BlockPos switchPos = new BlockPos(1, 6, 1);
         BlockPos finalPos = new BlockPos(2, 2, 1);
         helper.pullLever(lever);
-        helper.succeedWhen(
+        helper.succeedWhenWithDiagnostics(
                 () -> {
                     ThresholdSwitchBlockEntity switchBe =
                             helper.getBlockEntity(
@@ -112,7 +141,14 @@ public class TestMisc {
                                         + switchBe.getMaxLevel()
                                         + "; state: "
                                         + switchBe.getBlockState());
-                });
+                },
+                () ->
+                        helper.snapshot(
+                                switchPos,
+                                switchPos.east(),
+                                switchPos.east(2),
+                                switchPos.east(3),
+                                lever));
     }
 
     @GameTest(template = "netherite_backtank", timeoutTicks = CreateGameTestHelper.TEN_SECONDS)
@@ -120,20 +156,55 @@ public class TestMisc {
         BlockPos lava = new BlockPos(2, 2, 3);
         BlockPos zombieSpawn = lava.above(2);
         BlockPos armorStandPos = new BlockPos(2, 2, 1);
+        Zombie[] spawned = new Zombie[1];
+        ItemStack[] equipment = new ItemStack[EquipmentSlot.values().length];
         helper.runAtTickTime(
                 5,
                 () -> {
                     Zombie zombie = helper.spawn(EntityType.ZOMBIE, zombieSpawn);
+                    spawned[0] = zombie;
                     ArmorStand armorStand =
                             helper.getFirstEntity(EntityType.ARMOR_STAND, armorStandPos);
                     for (EquipmentSlot slot : EquipmentSlot.values()) {
-                        zombie.setItemSlot(slot, armorStand.getItemBySlot(slot).copy());
+                        equipment[slot.ordinal()] = armorStand.getItemBySlot(slot).copy();
+                        zombie.setItemSlot(slot, equipment[slot.ordinal()].copy());
                     }
                 });
-        helper.succeedWhen(
+        helper.succeedWhenWithDiagnostics(
                 () -> {
                     helper.assertSecondsPassed(9);
+                    helper.assertTrue(spawned[0] != null, "Zombie was not spawned");
+                    helper.assertTrue(spawned[0].isAlive(), "Zombie died");
+                    helper.assertTrue(!spawned[0].isRemoved(), "Zombie was removed");
+                    helper.assertTrue(spawned[0].getHealth() > 0, "Zombie has no health");
+                    for (EquipmentSlot slot : EquipmentSlot.values()) {
+                        helper.assertTrue(
+                                ItemStack.isSameItem(
+                                        spawned[0].getItemBySlot(slot), equipment[slot.ordinal()]),
+                                "Zombie changed equipment in " + slot);
+                    }
                     helper.assertEntityPresent(EntityType.ZOMBIE, lava);
-                });
+                },
+                () ->
+                        spawned[0] == null
+                                ? "zombie not spawned"
+                                : "health="
+                                        + spawned[0].getHealth()
+                                        + ", alive="
+                                        + spawned[0].isAlive()
+                                        + ", removed="
+                                        + spawned[0].isRemoved()
+                                        + ", fireImmune="
+                                        + spawned[0].fireImmune()
+                                        + ", fireTicks="
+                                        + spawned[0].getRemainingFireTicks()
+                                        + ", air="
+                                        + spawned[0].getAirSupply()
+                                        + ", position="
+                                        + spawned[0].position()
+                                        + ", data="
+                                        + spawned[0].saveWithoutId(new CompoundTag())
+                                        + "; "
+                                        + helper.snapshot(lava, armorStandPos));
     }
 }

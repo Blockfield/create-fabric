@@ -480,7 +480,9 @@ public class TestItems {
         for (int i = 0; i < 18; i++) { // insert 18 stacks
             TransferUtil.insert(chestStorage, diamondStack);
         }
-        helper.succeedWhen(() -> helper.assertBlockProperty(lamp, RedstoneLampBlock.LIT, true));
+        helper.succeedWhenWithDiagnostics(
+                () -> helper.assertBlockProperty(lamp, RedstoneLampBlock.LIT, true),
+                () -> helper.snapshot(chest, chest.east(), lamp));
     }
 
     @GameTest(template = "storages", timeoutTicks = CreateGameTestHelper.TEN_SECONDS)
@@ -510,12 +512,23 @@ public class TestItems {
         helper.assertNixiePower(bigNixie, 0);
         helper.whenSecondsPassed(3, () -> helper.spawnItems(bigInput, Items.BREAD, 64 * 240));
 
-        helper.succeedWhen(
+        helper.succeedWhenWithDiagnostics(
                 () -> {
                     helper.assertNixiePower(smallNixie, 7);
                     helper.assertNixiePower(medNixie, 7);
                     helper.assertNixiePower(bigNixie, 7);
-                });
+                },
+                () ->
+                        helper.snapshot(
+                                new BlockPos(1, 2, 1),
+                                new BlockPos(1, 3, 1),
+                                smallNixie,
+                                new BlockPos(1, 2, 3),
+                                new BlockPos(1, 4, 4),
+                                medNixie,
+                                new BlockPos(1, 2, 6),
+                                new BlockPos(1, 5, 8),
+                                bigNixie));
     }
 
     @GameTest(template = "arm_purgatory")

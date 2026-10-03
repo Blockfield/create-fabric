@@ -29,7 +29,16 @@ public class TestProcessing {
         BlockPos lever = new BlockPos(2, 3, 2);
         BlockPos chest = new BlockPos(7, 3, 1);
         helper.pullLever(lever);
-        helper.succeedWhen(() -> helper.assertContainerContains(chest, AllItems.BRASS_INGOT.get()));
+        helper.succeedWhenWithDiagnostics(
+                () -> helper.assertContainerContains(chest, AllItems.BRASS_INGOT.get()),
+                () ->
+                        helper.snapshot(
+                                lever,
+                                new BlockPos(1, 3, 1),
+                                new BlockPos(1, 3, 3),
+                                new BlockPos(4, 3, 1),
+                                new BlockPos(4, 5, 1),
+                                new BlockPos(4, 6, 2)));
     }
 
     @GameTest(template = "brass_mixing_2", timeoutTicks = CreateGameTestHelper.TWENTY_SECONDS)
@@ -40,8 +49,18 @@ public class TestProcessing {
         helper.pullLever(armLever);
         helper.whenSecondsPassed(7, () -> helper.pullLever(armLever));
         helper.whenSecondsPassed(10, () -> helper.pullLever(basinLever));
-        helper.succeedWhen(
-                () -> helper.assertContainerContains(output, AllItems.BRASS_INGOT.get()));
+        helper.succeedWhenWithDiagnostics(
+                () -> helper.assertContainerContains(output, AllItems.BRASS_INGOT.get()),
+                () ->
+                        helper.snapshot(
+                                basinLever,
+                                armLever,
+                                new BlockPos(3, 3, 3),
+                                new BlockPos(3, 5, 3),
+                                new BlockPos(3, 6, 2),
+                                new BlockPos(2, 3, 6),
+                                new BlockPos(2, 3, 8),
+                                new BlockPos(3, 3, 8)));
     }
 
     @GameTest(template = "crushing_wheel_crafting", timeoutTicks = CreateGameTestHelper.TEN_SECONDS)
@@ -51,7 +70,17 @@ public class TestProcessing {
                 List.of(new BlockPos(2, 3, 2), new BlockPos(6, 3, 2), new BlockPos(3, 7, 3));
         levers.forEach(helper::pullLever);
         ItemStack expected = new ItemStack(AllBlocks.CRUSHING_WHEEL.get(), 2);
-        helper.succeedWhen(() -> helper.assertContainerContains(chest, expected));
+        helper.succeedWhenWithDiagnostics(
+                () -> helper.assertContainerContains(chest, expected),
+                () ->
+                        helper.snapshot(
+                                new BlockPos(1, 3, 1),
+                                new BlockPos(7, 3, 1),
+                                new BlockPos(4, 8, 3),
+                                new BlockPos(3, 2, 1),
+                                new BlockPos(5, 2, 1),
+                                new BlockPos(4, 4, 3),
+                                new BlockPos(4, 3, 1)));
     }
 
     @GameTest(
@@ -80,11 +109,19 @@ public class TestProcessing {
                         .filter(item -> item != result)
                         .toArray(Item[]::new);
 
-        helper.succeedWhen(
+        helper.succeedWhenWithDiagnostics(
                 () -> {
                     helper.assertContainerContains(output, result);
                     helper.assertAnyContained(output, possibleResults);
-                });
+                },
+                () ->
+                        helper.snapshot(
+                                lever,
+                                new BlockPos(5, 3, 5),
+                                new BlockPos(3, 4, 1),
+                                new BlockPos(3, 4, 3),
+                                new BlockPos(3, 4, 5),
+                                new BlockPos(6, 2, 4)));
     }
 
     @GameTest(template = "sand_washing", timeoutTicks = CreateGameTestHelper.TEN_SECONDS)
@@ -92,7 +129,15 @@ public class TestProcessing {
         BlockPos leverPos = new BlockPos(5, 3, 1);
         helper.pullLever(leverPos);
         BlockPos chestPos = new BlockPos(8, 3, 2);
-        helper.succeedWhen(() -> helper.assertContainerContains(chestPos, Items.CLAY_BALL));
+        helper.succeedWhenWithDiagnostics(
+                () -> helper.assertContainerContains(chestPos, Items.CLAY_BALL),
+                () ->
+                        helper.snapshot(
+                                leverPos,
+                                new BlockPos(5, 3, 3),
+                                new BlockPos(2, 3, 2),
+                                new BlockPos(1, 3, 2),
+                                new BlockPos(7, 2, 3)));
     }
 
     @GameTest(
@@ -103,7 +148,16 @@ public class TestProcessing {
         BlockPos lever = new BlockPos(2, 3, 1);
         helper.pullLever(lever);
         ItemStack expected = new ItemStack(Items.SAND, 5);
-        helper.succeedWhen(() -> helper.assertContainerContains(chest, expected));
+        helper.succeedWhenWithDiagnostics(
+                () -> helper.assertContainerContains(chest, expected),
+                () ->
+                        helper.snapshot(
+                                lever,
+                                new BlockPos(1, 3, 2),
+                                new BlockPos(4, 3, 2),
+                                new BlockPos(4, 6, 2),
+                                new BlockPos(7, 7, 2),
+                                new BlockPos(7, 8, 2)));
     }
 
     @GameTest(template = "track_crafting", timeoutTicks = CreateGameTestHelper.TEN_SECONDS)
@@ -112,13 +166,23 @@ public class TestProcessing {
         BlockPos lever = new BlockPos(2, 3, 1);
         helper.pullLever(lever);
         ItemStack expected = new ItemStack(AllBlocks.TRACK.get(), 6);
-        helper.succeedWhen(
+        helper.succeedWhenWithDiagnostics(
                 () -> {
                     helper.assertContainerContains(output, expected);
                     Storage<ItemVariant> storage = helper.itemStorageAt(output);
                     ItemHelper.extract(storage, ItemHelper.sameItemPredicate(expected), 6, false);
                     helper.assertContainerEmpty(output);
-                });
+                },
+                () ->
+                        helper.snapshot(
+                                lever,
+                                new BlockPos(1, 3, 2),
+                                new BlockPos(3, 4, 2),
+                                new BlockPos(4, 4, 2),
+                                new BlockPos(5, 4, 2),
+                                new BlockPos(6, 4, 2),
+                                new BlockPos(3, 6, 2),
+                                new BlockPos(4, 6, 2)));
     }
 
     @GameTest(template = "water_filling_bottle")
@@ -127,7 +191,17 @@ public class TestProcessing {
         BlockPos output = new BlockPos(2, 2, 4);
         ItemStack expected = PotionContents.createItemStack(Items.POTION, Potions.WATER);
         helper.pullLever(lever);
-        helper.succeedWhen(() -> helper.assertContainerContains(output, expected));
+        helper.succeedWhenWithDiagnostics(
+                () -> helper.assertContainerContains(output, expected),
+                () ->
+                        helper.snapshot(
+                                lever,
+                                new BlockPos(2, 2, 3),
+                                new BlockPos(2, 3, 4),
+                                new BlockPos(2, 4, 1),
+                                new BlockPos(4, 3, 3),
+                                new BlockPos(4, 2, 4),
+                                new BlockPos(3, 2, 4)));
     }
 
     @GameTest(template = "wheat_milling")
@@ -136,6 +210,14 @@ public class TestProcessing {
         BlockPos lever = new BlockPos(1, 7, 1);
         helper.pullLever(lever);
         ItemStack expected = new ItemStack(AllItems.WHEAT_FLOUR.get(), 3);
-        helper.succeedWhen(() -> helper.assertContainerContains(output, expected));
+        helper.succeedWhenWithDiagnostics(
+                () -> helper.assertContainerContains(output, expected),
+                () ->
+                        helper.snapshot(
+                                lever,
+                                new BlockPos(2, 7, 1),
+                                new BlockPos(2, 6, 1),
+                                new BlockPos(2, 3, 1),
+                                new BlockPos(1, 4, 1)));
     }
 }
