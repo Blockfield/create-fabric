@@ -400,7 +400,10 @@ public class TestFluids {
                 });
     }
 
-    @GameTest(template = "threshold_switch", timeoutTicks = CreateGameTestHelper.TWENTY_SECONDS)
+    // Fabric's staged fill/drain exceeds 400 ticks at this fixture's branch pressures.
+    @GameTest(
+            template = "threshold_switch",
+            timeoutTicks = 30 * CreateGameTestHelper.TICKS_PER_SECOND)
     public static void thresholdSwitch(CreateGameTestHelper helper) {
         BlockPos leftHandle = new BlockPos(4, 2, 4);
         BlockPos leftValve = new BlockPos(4, 2, 3);
