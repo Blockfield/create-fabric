@@ -2,7 +2,6 @@ package com.simibubi.create.content.fluids.transfer;
 
 import com.simibubi.create.AllRecipeTypes;
 import com.simibubi.create.content.fluids.potion.PotionFluidHandler;
-import com.simibubi.create.infrastructure.fabric.transfer.TransferUtil;
 import com.simibubi.create.infrastructure.fabric.transfer.fluid.FluidStack;
 
 import io.github.fabricators_of_create.porting_lib.transfer.MutableContainerItemContext;
@@ -13,7 +12,9 @@ import net.fabricmc.fabric.api.transfer.v1.fluid.FluidConstants;
 import net.fabricmc.fabric.api.transfer.v1.fluid.FluidStorage;
 import net.fabricmc.fabric.api.transfer.v1.fluid.FluidVariant;
 import net.fabricmc.fabric.api.transfer.v1.storage.Storage;
+import net.fabricmc.fabric.api.transfer.v1.storage.StorageUtil;
 import net.fabricmc.fabric.api.transfer.v1.transaction.Transaction;
+import net.fabricmc.fabric.api.transfer.v1.transaction.TransactionContext;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.Recipe;
 import net.minecraft.world.item.crafting.RecipeHolder;
@@ -38,6 +39,11 @@ public class GenericItemEmptying {
 
     public static Pair<FluidStack, ItemStack> emptyItem(
             Level world, ItemStack stack, boolean simulate) {
+        return emptyItem(world, stack, simulate, null);
+    }
+
+    public static Pair<FluidStack, ItemStack> emptyItem(
+            Level world, ItemStack stack, boolean simulate, TransactionContext parent) {
         FluidStack resultingFluid = FluidStack.EMPTY;
         ItemStack resultingItem = ItemStack.EMPTY;
 
@@ -60,8 +66,8 @@ public class GenericItemEmptying {
         MutableContainerItemContext ctx = new MutableContainerItemContext(split);
         Storage<FluidVariant> tank = FluidStorage.ITEM.find(split, ctx);
         if (tank == null) return Pair.of(resultingFluid, resultingItem);
-        try (Transaction t = Transaction.openOuter()) {
-            resultingFluid = TransferUtil.extractAnyFluid(tank, FluidConstants.BUCKET);
+        try (Transaction t = Transaction.openNested(parent)) {
+            resultingFluid = FluidStack.of(StorageUtil.extractAny(tank, FluidConstants.BUCKET, t));
             int amount = ctx.getItemVariant().isBlank() ? 0 : (int) ctx.getAmount(); // GH#1622
             resultingItem = ctx.getItemVariant().toStack(amount);
             if (!simulate) {

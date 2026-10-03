@@ -106,6 +106,8 @@ public class TestItems {
                         helper.fail("Unexpected count on depot 1: " + held1Count);
                     if (!held2Empty && held2Count != 1)
                         helper.fail("Unexpected count on depot 2: " + held2Count);
+                    if (held1Count + held2Count != 1)
+                        helper.fail("Arm simulation duplicated the transferred item");
                 });
     }
 

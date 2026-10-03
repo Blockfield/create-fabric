@@ -25,6 +25,7 @@ import net.createmod.catnip.math.VecHelper;
 import net.createmod.catnip.nbt.NBTHelper;
 import net.createmod.catnip.platform.CatnipServices;
 import net.fabricmc.fabric.api.transfer.v1.transaction.Transaction;
+import net.fabricmc.fabric.api.transfer.v1.transaction.TransactionContext;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
@@ -341,10 +342,15 @@ public class ArmBlockEntity extends KineticBlockEntity implements TransformableB
     }
 
     protected int getDistributableAmount(ArmInteractionPoint armInteractionPoint) {
-        try (Transaction t = Transaction.openOuter()) {
+        return getDistributableAmount(armInteractionPoint, null);
+    }
+
+    private int getDistributableAmount(
+            ArmInteractionPoint armInteractionPoint, TransactionContext parent) {
+        try (Transaction t = Transaction.openNested(parent)) {
             ItemStack stack = armInteractionPoint.extract(t);
 
-            ItemStack remainder = stack.isEmpty() ? stack : simulateInsertion(stack);
+            ItemStack remainder = stack.isEmpty() ? stack : simulateInsertion(stack, t);
             if (ItemStack.isSameItem(stack, remainder)) {
                 return stack.getCount() - remainder.getCount();
             } else {
@@ -353,8 +359,8 @@ public class ArmBlockEntity extends KineticBlockEntity implements TransformableB
         }
     }
 
-    private ItemStack simulateInsertion(ItemStack stack) {
-        try (Transaction t = Transaction.openOuter()) {
+    private ItemStack simulateInsertion(ItemStack stack, TransactionContext parent) {
+        try (Transaction t = parent.openNested()) {
             for (ArmInteractionPoint armInteractionPoint : outputs) {
                 if (armInteractionPoint.isValid()) stack = armInteractionPoint.insert(stack, t);
                 if (stack.isEmpty()) break;
@@ -390,7 +396,7 @@ public class ArmBlockEntity extends KineticBlockEntity implements TransformableB
         ArmInteractionPoint armInteractionPoint = getTargetedInteractionPoint();
         if (armInteractionPoint != null && armInteractionPoint.isValid()) {
             try (Transaction t = Transaction.openOuter()) {
-                int amountExtracted = getDistributableAmount(armInteractionPoint);
+                int amountExtracted = getDistributableAmount(armInteractionPoint, t);
                 if (amountExtracted == 0) return;
                 ItemStack prevHeld = heldItem;
                 heldItem = armInteractionPoint.extract(amountExtracted, t);

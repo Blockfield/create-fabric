@@ -13,6 +13,7 @@ import net.fabricmc.fabric.api.transfer.v1.item.ItemStorage;
 import net.fabricmc.fabric.api.transfer.v1.item.ItemVariant;
 import net.fabricmc.fabric.api.transfer.v1.storage.Storage;
 import net.fabricmc.fabric.api.transfer.v1.transaction.Transaction;
+import net.fabricmc.fabric.api.transfer.v1.transaction.TransactionContext;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
@@ -83,11 +84,15 @@ public class InvManipulationBehaviour
     }
 
     public ItemStack insert(ItemStack stack) {
+        return insert(stack, null);
+    }
+
+    public ItemStack insert(ItemStack stack, TransactionContext parent) {
         boolean shouldSimulate = simulateNext;
         simulateNext = false;
         Storage<ItemVariant> inventory = hasInventory() ? getInventory() : null;
         if (inventory == null) return stack;
-        try (Transaction t = Transaction.openOuter()) {
+        try (Transaction t = Transaction.openNested(parent)) {
             long inserted = inventory.insert(ItemVariant.of(stack), stack.getCount(), t);
             if (!shouldSimulate) t.commit();
             long remainder = stack.getCount() - inserted;
