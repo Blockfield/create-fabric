@@ -4,6 +4,7 @@ import static com.simibubi.create.infrastructure.gametest.CreateGameTestHelper.F
 
 import com.simibubi.create.AllBlockEntityTypes;
 import com.simibubi.create.AllDataComponents;
+import com.simibubi.create.content.kinetics.transmission.sequencer.SequencedGearshiftBlockEntity;
 import com.simibubi.create.content.redstone.thresholdSwitch.ThresholdSwitchBlockEntity;
 import com.simibubi.create.content.schematics.SchematicExport;
 import com.simibubi.create.content.schematics.SchematicItem;
@@ -123,7 +124,16 @@ public class TestMisc {
         BlockPos lever = new BlockPos(3, 7, 1);
         BlockPos switchPos = new BlockPos(1, 6, 1);
         BlockPos finalPos = new BlockPos(2, 2, 1);
-        helper.pullLever(lever);
+        SequencedGearshiftBlockEntity gearshift =
+                helper.getBlockEntity(
+                        AllBlockEntityTypes.SEQUENCED_GEARSHIFT.get(), switchPos.east(2));
+        helper.startSequence()
+                .thenWaitUntil(
+                        () ->
+                                helper.assertTrue(
+                                        gearshift.getSpeed() != 0,
+                                        "Waiting for gearshift kinetics"))
+                .thenExecute(() -> helper.pullLever(lever));
         helper.succeedWhenWithDiagnostics(
                 () -> {
                     ThresholdSwitchBlockEntity switchBe =

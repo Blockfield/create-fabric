@@ -225,6 +225,8 @@ public class CreateGameTestHelper extends GameTestHelper {
                     pos
                             + " "
                             + getBlockState(pos)
+                            + " entityTicking="
+                            + getLevel().isPositionEntityTicking(absolutePos(pos))
                             + " "
                             + (blockEntity == null
                                     ? "no block entity"
@@ -240,7 +242,14 @@ public class CreateGameTestHelper extends GameTestHelper {
                     try {
                         assertions.run();
                     } catch (GameTestAssertException failure) {
-                        fail(failure.getMessage() + "; snapshot: " + diagnostics.get());
+                        fail(
+                                failure.getMessage()
+                                        + "; tick="
+                                        + getTick()
+                                        + "; forcedChunks="
+                                        + getLevel().getForcedChunks().size()
+                                        + "; snapshot: "
+                                        + diagnostics.get());
                     }
                 });
     }
