@@ -1,10 +1,14 @@
 package com.simibubi.create.infrastructure.gametest.tests;
 
 import com.simibubi.create.AllBlockEntityTypes;
+import com.simibubi.create.AllBlocks;
+import com.simibubi.create.content.fluids.drain.ItemDrainBlockEntity;
 import com.simibubi.create.content.fluids.hosePulley.HosePulleyFluidHandler;
 import com.simibubi.create.content.fluids.pipes.valve.FluidValveBlock;
 import com.simibubi.create.content.fluids.potion.PotionFluid;
 import com.simibubi.create.content.fluids.potion.PotionFluid.BottleType;
+import com.simibubi.create.content.fluids.transfer.GenericItemEmptying;
+import com.simibubi.create.content.kinetics.belt.behaviour.DirectBeltInputBehaviour;
 import com.simibubi.create.content.kinetics.gauge.SpeedGaugeBlockEntity;
 import com.simibubi.create.content.kinetics.gauge.StressGaugeBlockEntity;
 import com.simibubi.create.content.kinetics.waterwheel.WaterWheelBlockEntity;
@@ -18,7 +22,9 @@ import com.simibubi.create.infrastructure.gametest.GameTestGroup;
 import net.fabricmc.fabric.api.transfer.v1.fluid.FluidConstants;
 import net.fabricmc.fabric.api.transfer.v1.fluid.FluidVariant;
 import net.fabricmc.fabric.api.transfer.v1.storage.Storage;
+import net.fabricmc.fabric.api.transfer.v1.transaction.Transaction;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.core.Holder;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.gametest.framework.GameTest;
@@ -50,6 +56,59 @@ import java.util.stream.Collectors;
 
 @GameTestGroup(path = "fluids")
 public class TestFluids {
+    @GameTest(template = "spouting", timeoutTicks = CreateGameTestHelper.TEN_SECONDS)
+    public static void bucketEmptyingAndDrain(CreateGameTestHelper helper) {
+        ItemStack bucket = new ItemStack(Items.WATER_BUCKET);
+        var simulated = GenericItemEmptying.emptyItem(helper.getLevel(), bucket, true);
+        helper.assertTrue(
+                simulated.getFirst().getFluid() == Fluids.WATER
+                        && simulated.getFirst().getAmount() == FluidConstants.BUCKET,
+                "Bucket simulation produced wrong fluid");
+        helper.assertTrue(simulated.getSecond().is(Items.BUCKET), "Simulation lost empty bucket");
+        helper.assertTrue(
+                bucket.is(Items.WATER_BUCKET) && bucket.getCount() == 1,
+                "Simulation consumed bucket");
+
+        try (Transaction outer = Transaction.openOuter()) {
+            var nested = GenericItemEmptying.emptyItem(helper.getLevel(), bucket, true, outer);
+            helper.assertTrue(
+                    nested.getFirst().getAmount() == FluidConstants.BUCKET,
+                    "Nested bucket simulation produced wrong amount");
+            helper.assertTrue(
+                    nested.getSecond().is(Items.BUCKET), "Nested simulation lost empty bucket");
+            outer.commit();
+        }
+        helper.assertTrue(
+                bucket.is(Items.WATER_BUCKET) && bucket.getCount() == 1,
+                "Nested simulation consumed bucket");
+
+        ItemStack consumed = bucket.copy();
+        var emptied = GenericItemEmptying.emptyItem(helper.getLevel(), consumed, false);
+        helper.assertTrue(consumed.isEmpty(), "Real emptying did not consume bucket");
+        helper.assertTrue(
+                emptied.getFirst().getAmount() == FluidConstants.BUCKET
+                        && emptied.getSecond().is(Items.BUCKET),
+                "Real emptying lost fluid or empty bucket");
+
+        BlockPos pos = new BlockPos(5, 2, 1);
+        helper.setBlock(pos, Blocks.AIR);
+        helper.setBlock(pos, AllBlocks.ITEM_DRAIN.get());
+        ItemDrainBlockEntity drain =
+                helper.getBlockEntity(AllBlockEntityTypes.ITEM_DRAIN.get(), pos);
+        DirectBeltInputBehaviour input = helper.getBehavior(pos, DirectBeltInputBehaviour.TYPE);
+        helper.assertTrue(
+                input.handleInsertion(bucket, Direction.WEST, false).isEmpty(),
+                "Item drain rejected water bucket");
+        helper.succeedWhen(
+                () -> {
+                    helper.assertFluidPresent(
+                            new FluidStack(Fluids.WATER, FluidConstants.BUCKET), pos);
+                    helper.assertTrue(
+                            drain.getHeldItemStack().is(Items.BUCKET),
+                            "Item drain did not return empty bucket");
+                });
+    }
+
     @GameTest(template = "spouting")
     public static void fluidTankSerialization(CreateGameTestHelper helper) {
         FluidTank source = new FluidTank(FluidConstants.BUCKET * 2);
