@@ -18,15 +18,19 @@ public class ServerChainConveyorHandler {
 
 	public static void handleTTLPacket(Player player) {
 		int count = hangingPlayers.size();
-		hangingPlayers.put(player.getUUID(), 20);
+		int previous = hangingPlayers.put(player.getUUID(), 20);
+		if (previous == 0)
+			BlockfieldHangingHook.entered(player.getUUID());
 
 		if (hangingPlayers.size() != count)
 			sync();
 	}
 
 	public static void handleStopRidingPacket(Player player) {
-		if (hangingPlayers.removeInt(player.getUUID()) != 0)
+		if (hangingPlayers.removeInt(player.getUUID()) != 0) {
+			BlockfieldHangingHook.exited(player.getUUID(), false);
 			sync();
+		}
 	}
 
 	public static void tick() {
@@ -39,6 +43,7 @@ public class ServerChainConveyorHandler {
 			Map.Entry<UUID, Integer> entry = iterator.next();
 			int newTTL = entry.getValue() - 1;
 			if (newTTL <= 0) {
+				BlockfieldHangingHook.exited(entry.getKey(), true);
 				iterator.remove();
 			} else {
 				entry.setValue(newTTL);
