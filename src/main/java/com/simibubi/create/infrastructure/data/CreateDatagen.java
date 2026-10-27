@@ -103,6 +103,10 @@ public class CreateDatagen implements DataGeneratorEntrypoint {
         pack.addProvider(WashingRecipeGen::new);
         pack.addProvider(GeneratedEntriesProvider::new);
         pack.addProvider(VanillaHatOffsetGenerator::new);
+        // assets/create/sounds.json для всех звуков мода: без него клиент пишет
+        // "Missing sound for event: create:*" и молчит (wrapped-события играют
+        // create:* напрямую, резолв через sounds.json).
+        pack.addProvider((output, registries) -> AllSoundEvents.provider(output));
 
         // fabric: no equivalent to NeoForge data maps or Curios, both providers were dropped
     }
