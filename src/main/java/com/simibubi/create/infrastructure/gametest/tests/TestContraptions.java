@@ -263,7 +263,9 @@ public class TestContraptions {
     //		helper.fail("NYI");
     //	}
 
-    @GameTest(template = "dispensers_dont_fight")
+    @GameTest(
+            template = "dispensers_dont_fight",
+            timeoutTicks = CreateGameTestHelper.TWENTY_SECONDS)
     public static void dispensersDontFight(CreateGameTestHelper helper) {
         helper.pullLever(2, 3, 1);
         BlockPos bottom = new BlockPos(6, 4, 1);
