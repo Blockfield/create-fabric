@@ -137,7 +137,10 @@ public class GantryContraptionEntity extends AbstractContraptionEntity {
         double nextCoord =
                 direction.getAxis().choose(nextPosition.x, nextPosition.y, nextPosition.z);
 
-        if ((Mth.floor(currentCoord) + .5f < nextCoord
+        // Compare in double precision: with float, the .5 midpoint is lost to
+        // rounding once |coordinate| >= 2^23, and the pinion-support gate then
+        // misfires depending on world position (dropped actor visits).
+        if ((Mth.floor(currentCoord) + .5 < nextCoord
                 != (pinionMovementSpeed * direction.getAxisDirection().getStep() < 0)))
             if (!gantryShaftBlockEntity.canAssembleOn()) {
                 setContraptionMotion(Vec3.ZERO);
